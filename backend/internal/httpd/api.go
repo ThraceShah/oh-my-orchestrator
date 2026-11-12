@@ -101,6 +101,9 @@ type APIDeps struct {
 	// Fleet is set only on a control-plane daemon. Nil answers enrollment and
 	// listing with FLEET_NOT_CONFIGURED.
 	Fleet controllers.FleetService
+	// FleetTerminal relays a loopback terminal to the worker that owns it.
+	// Nil leaves the route unmounted.
+	FleetTerminal http.Handler
 
 	// Presence tracks which mobile devices are currently running the app.
 	// Nil disables presence tracking (the roster then reports every device offline).

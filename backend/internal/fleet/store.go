@@ -263,6 +263,29 @@ ON CONFLICT(session_id) DO UPDATE SET
 	return err
 }
 
+// PlacementFor finds a placement by the control-plane key or the worker engine id.
+func (s *Store) PlacementFor(ctx context.Context, id string) (SessionPlacement, bool, error) {
+	found, ok, err := s.Placement(ctx, id)
+	if err != nil || ok {
+		return found, ok, err
+	}
+	var p SessionPlacement
+	var state, updated string
+	err = s.db.QueryRowContext(ctx, `
+SELECT session_id, node_id, state, detail, engine_id, updated_at
+FROM fleet_session_placements WHERE engine_id = ?`, id).
+		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SessionPlacement{}, false, nil
+	}
+	if err != nil {
+		return SessionPlacement{}, false, err
+	}
+	p.State = Placement(state)
+	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
+	return p, true, nil
+}
+
 func (s *Store) Placement(ctx context.Context, sessionID string) (SessionPlacement, bool, error) {
 	var p SessionPlacement
 	var state, updated string

@@ -41,6 +41,10 @@ ao daemon
 
 An on-demand node names its broker and the commands that broker should run. The control plane sends that configured command when a session names the node, or when an operator runs `ao fleet power <id> wake`. `ao fleet power <id> shutdown` is refused while the node still owns a session. The broker executes the command on its own machine; the product has no built-in power protocol. A worker only accepts power commands when `AO_FLEET_POWER_BROKER=on`.
 
+## Terminals
+
+`/internal/fleet/terminal` on the control plane relays one loopback websocket to the worker that owns the session. The first frame is `{"type":"open","sessionId":"..."}`. Later frames are `data` (base64), `resize`, and `close`. The worker attaches the terminal its own engine already started. It does not launch another agent. Chat events are not relayed yet.
+
 ## What is not included
 
-Terminal bytes and chat events are not yet proxied through the control plane. A pinned spawn is delivered to the worker, the worker starts it in its own engine, and the control plane records that engine's session id on the placement. Opening the terminal from the control plane is the next slice.
+The desktop still opens a terminal through its local mux. Pointing that mux at a fleet session is the next slice. Chat turns are not proxied.

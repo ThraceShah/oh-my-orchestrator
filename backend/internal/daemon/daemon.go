@@ -784,10 +784,20 @@ func Run(buildVersion string) error {
 		if cfg.Fleet.PowerBroker {
 			power = fleet.ExecPower
 		}
+		bridge := &fleet.Bridge{Open: func(call context.Context, sessionID string, cols, rows uint16) (fleet.TerminalStream, error) {
+			return fleet.OpenSessionTerminal(call, func(call context.Context, id string) (string, error) {
+				sess, err := sessionSvc.Get(call, domain.SessionID(id))
+				if err != nil {
+					return "", err
+				}
+				return sess.TerminalHandleID, nil
+			}, runtimeAdapter, sessionID, cols, rows)
+		}}
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
-			Caps:    func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
-			Handler: fleet.WorkerHandler(sessionSvc, power, log),
+			Caps:       func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
+			Handler:    fleet.WorkerHandler(sessionSvc, power, log),
+			OnTerminal: bridge.Handle,
 		}
 		go func() {
 			defer sentryobs.RecoverBackground()
@@ -1283,6 +1293,7 @@ func Run(buildVersion string) error {
 		BrowserChrome:            browserChrome,
 		LinkPreview:              linkpreviewsvc.New(nil),
 		Fleet:                    fleetAPI(fleetRuntime),
+		FleetTerminal:            fleetTerminal(fleetRuntime),
 		PreviewServer:            managedPreview,
 		SessionCapabilities:      browserAuthority,
 		ShellPreviewCapabilities: shellTermSvc,
@@ -1625,6 +1636,13 @@ func workerCapabilities(ctx context.Context, agents interface {
 		return nil
 	}
 	return caps
+}
+
+func fleetTerminal(rt *fleet.Runtime) http.Handler {
+	if rt == nil {
+		return nil
+	}
+	return &fleet.Relay{Hub: rt.Hub, Store: rt.Store}
 }
 
 func fleetAPI(rt *fleet.Runtime) interface {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -12,13 +13,14 @@ import (
 // Dialer is the worker side of the fleet connection. It keeps retrying until
 // ctx ends. Commands are handed to Handler one at a time.
 type Dialer struct {
-	URL      string
-	NodeID   string
-	Token    string
-	Identity string
-	Caps     func() []Capability
-	Handler  func(context.Context, Command) Event
-	Interval time.Duration
+	URL        string
+	NodeID     string
+	Token      string
+	Identity   string
+	Caps       func() []Capability
+	Handler    func(context.Context, Command) Event
+	OnTerminal func(context.Context, TerminalMessage, func(TerminalMessage) error)
+	Interval   time.Duration
 }
 
 func (d *Dialer) Run(ctx context.Context) error {
@@ -55,8 +57,9 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 		return err
 	}
 	defer conn.CloseNow()
+	writer := &lockedConn{conn: conn}
 	hello, _ := json.Marshal(Hello{NodeID: d.NodeID, Token: d.Token, Identity: d.Identity, Caps: d.capabilities()})
-	if err := writeFrame(ctx, conn, Frame{Type: FrameHello, Payload: hello}); err != nil {
+	if err := writer.write(ctx, Frame{Type: FrameHello, Payload: hello}); err != nil {
 		return err
 	}
 	var accepted Frame
@@ -76,14 +79,19 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 				errCh <- err
 				return
 			}
-			if frame.Type != FrameCommand || frame.Command == nil || d.Handler == nil {
-				continue
-			}
-			ev := d.Handler(ctx, *frame.Command)
-			ev.NodeID = d.NodeID
-			if err := writeFrame(ctx, conn, Frame{Type: FrameEvent, Event: &ev}); err != nil {
-				errCh <- err
-				return
+			switch {
+			case frame.Type == FrameTerminal && frame.Terminal != nil && d.OnTerminal != nil:
+				msg := *frame.Terminal
+				d.OnTerminal(ctx, msg, func(out TerminalMessage) error {
+					return writer.write(ctx, Frame{Type: FrameTerminal, Terminal: &out})
+				})
+			case frame.Type == FrameCommand && frame.Command != nil && d.Handler != nil:
+				ev := d.Handler(ctx, *frame.Command)
+				ev.NodeID = d.NodeID
+				if err := writer.write(ctx, Frame{Type: FrameEvent, Event: &ev}); err != nil {
+					errCh <- err
+					return
+				}
 			}
 		}
 	}()
@@ -94,11 +102,22 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 		case err := <-errCh:
 			return err
 		case <-beat.C:
-			if err := writeFrame(ctx, conn, Frame{Type: FrameHeartbeat, NodeID: d.NodeID, Caps: d.capabilities()}); err != nil {
+			if err := writer.write(ctx, Frame{Type: FrameHeartbeat, NodeID: d.NodeID, Caps: d.capabilities()}); err != nil {
 				return err
 			}
 		}
 	}
+}
+
+type lockedConn struct {
+	mu   sync.Mutex
+	conn *websocket.Conn
+}
+
+func (c *lockedConn) write(ctx context.Context, frame Frame) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return writeFrame(ctx, c.conn, frame)
 }
 
 func (d *Dialer) capabilities() []Capability {

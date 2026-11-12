@@ -114,7 +114,7 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 	link := &socketConn{conn: conn}
 	l.Hub.Attach(node.ID, link)
 	defer l.Hub.Detach(node.ID, link)
-	if err := writeFrame(ctx, conn, Frame{Type: FrameAccepted, NodeID: node.ID}); err != nil {
+	if err := link.write(ctx, Frame{Type: FrameAccepted, NodeID: node.ID}); err != nil {
 		return
 	}
 	for {
@@ -131,6 +131,10 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 			if frame.Event != nil {
 				frame.Event.NodeID = node.ID
 				l.Hub.Publish(*frame.Event)
+			}
+		case FrameTerminal:
+			if frame.Terminal != nil {
+				l.Hub.DeliverTerminal(*frame.Terminal)
 			}
 		default:
 			return
@@ -157,11 +161,22 @@ func writeFrame(ctx context.Context, conn *websocket.Conn, frame Frame) error {
 }
 
 type socketConn struct {
+	mu   sync.Mutex
 	conn *websocket.Conn
 }
 
+func (s *socketConn) write(ctx context.Context, frame Frame) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return writeFrame(ctx, s.conn, frame)
+}
+
 func (s *socketConn) Send(ctx context.Context, cmd Command) error {
-	return writeFrame(ctx, s.conn, Frame{Type: FrameCommand, Command: &cmd})
+	return s.write(ctx, Frame{Type: FrameCommand, Command: &cmd})
+}
+
+func (s *socketConn) SendTerminal(ctx context.Context, msg TerminalMessage) error {
+	return s.write(ctx, Frame{Type: FrameTerminal, Terminal: &msg})
 }
 
 func (s *socketConn) Close() error {

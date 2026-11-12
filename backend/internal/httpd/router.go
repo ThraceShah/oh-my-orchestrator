@@ -84,6 +84,7 @@ func NewRouterWithControl(cfg config.Config, log *slog.Logger, termMgr *terminal
 	mountControl(r, control)
 	mountTelemetry(r, cfg, deps.Telemetry)
 	mountFleet(r, deps.Fleet)
+	mountFleetTerminal(r, deps.FleetTerminal)
 	mountUsageFlush(r, deps.UsageFlush)
 	mountTelemetryIdentity(r, deps.TelemetryIdentity)
 	mountMobile(r, deps.Mobile)
@@ -97,6 +98,19 @@ func NewRouterWithControl(cfg config.Config, log *slog.Logger, termMgr *terminal
 
 func mountFleet(r chi.Router, svc controllers.FleetService) {
 	(&controllers.FleetController{Svc: svc}).Register(r)
+}
+
+func mountFleetTerminal(r chi.Router, handler http.Handler) {
+	if handler == nil {
+		return
+	}
+	r.Get("/internal/fleet/terminal", func(w http.ResponseWriter, req *http.Request) {
+		if !localControlRequest(req) {
+			envelope.WriteAPIError(w, req, http.StatusForbidden, "forbidden", "FLEET_TERMINAL_LOCAL_ONLY", "The fleet terminal is only available on the loopback daemon", nil)
+			return
+		}
+		handler.ServeHTTP(w, req)
+	})
 }
 
 func mountUsageFlush(r chi.Router, flush func(context.Context)) {

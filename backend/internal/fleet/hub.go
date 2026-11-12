@@ -52,6 +52,7 @@ type Hub struct {
 	mu     sync.Mutex
 	nodes  map[string]*link
 	events chan Event
+	terms  map[string]chan TerminalMessage
 }
 
 type link struct {
@@ -60,7 +61,7 @@ type link struct {
 }
 
 func NewHub() *Hub {
-	return &Hub{nodes: map[string]*link{}, events: make(chan Event, 64)}
+	return &Hub{nodes: map[string]*link{}, events: make(chan Event, 64), terms: map[string]chan TerminalMessage{}}
 }
 
 // Events is the control plane's inbound stream. It is never closed.
@@ -106,6 +107,59 @@ func (h *Hub) Dispatch(ctx context.Context, nodeID string, cmd Command) error {
 		return errors.New("fleet node is not connected")
 	}
 	return cur.conn.Send(ctx, cmd)
+}
+
+// SubscribeTerminal returns the worker's frames for one stream. Cancel
+// removes it and closes the channel.
+func (h *Hub) SubscribeTerminal(streamID string) (<-chan TerminalMessage, func()) {
+	ch := make(chan TerminalMessage, 64)
+	h.mu.Lock()
+	h.terms[streamID] = ch
+	h.mu.Unlock()
+	var once sync.Once
+	return ch, func() {
+		once.Do(func() {
+			h.mu.Lock()
+			if h.terms[streamID] == ch {
+				delete(h.terms, streamID)
+			}
+			h.mu.Unlock()
+			close(ch)
+		})
+	}
+}
+
+// DeliverTerminal forwards one worker frame to the client waiting on its stream.
+// A frame for an unknown stream is ignored. A full queue drops the frame rather
+// than stalling the worker connection.
+func (h *Hub) DeliverTerminal(msg TerminalMessage) {
+	h.mu.Lock()
+	ch := h.terms[msg.StreamID]
+	h.mu.Unlock()
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- msg:
+	default:
+	}
+}
+
+// SendTerminal delivers one client frame to the node that owns the stream.
+func (h *Hub) SendTerminal(ctx context.Context, nodeID string, msg TerminalMessage) error {
+	h.mu.Lock()
+	cur, ok := h.nodes[nodeID]
+	h.mu.Unlock()
+	if !ok {
+		return errors.New("fleet node is not connected")
+	}
+	sender, ok := cur.conn.(interface {
+		SendTerminal(context.Context, TerminalMessage) error
+	})
+	if !ok {
+		return errors.New("fleet node cannot carry a terminal")
+	}
+	return sender.SendTerminal(ctx, msg)
 }
 
 // Publish queues an event from a worker. A full buffer drops the event rather
