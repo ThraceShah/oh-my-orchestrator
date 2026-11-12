@@ -182,7 +182,6 @@ type API struct {
 	linkPreview   *controllers.LinkPreviewController
 	github        *controllers.GitHubController
 	events        *EventsController
-	fleet         *controllers.FleetController
 }
 
 // NewAPI constructs the API surface from its dependencies. cfg carries the
@@ -206,7 +205,6 @@ func newAPIWithLogger(cfg config.Config, deps APIDeps, log *slog.Logger) *API {
 		projects: &controllers.ProjectsController{
 			Mgr: deps.Projects,
 		},
-		fleet: &controllers.FleetController{Svc: deps.Fleet},
 		sessions: &controllers.SessionsController{
 			Svc:                      deps.Sessions,
 			Projects:                 deps.Projects,
@@ -360,7 +358,6 @@ func (a *API) Register(root chi.Router) {
 			a.codexAccounts.Register(r)
 			a.agentAccounts.Register(r)
 			a.projects.Register(r)
-			a.fleet.Register(r)
 			a.sessions.Register(r)
 			a.automations.Register(r)
 			a.desktop.Register(r)

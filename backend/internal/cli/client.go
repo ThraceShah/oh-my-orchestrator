@@ -146,6 +146,14 @@ func (c *commandContext) postLoopbackJSON(ctx context.Context, path string, body
 	return c.doJSONPath(ctx, http.MethodPost, path, body, nil)
 }
 
+func (c *commandContext) postLoopbackJSONDecoded(ctx context.Context, path string, body, out any) error {
+	return c.doJSONPath(ctx, http.MethodPost, path, body, out)
+}
+
+func (c *commandContext) getLoopbackJSON(ctx context.Context, path string, out any) error {
+	return c.doJSONPath(ctx, http.MethodGet, path, nil, out)
+}
+
 func (c *commandContext) doJSONPath(ctx context.Context, method, path string, body, out any) error {
 	return c.doJSONPathWithHeaders(ctx, method, path, body, out, nil)
 }

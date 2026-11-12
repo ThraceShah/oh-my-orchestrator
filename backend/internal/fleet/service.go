@@ -89,8 +89,9 @@ func (s *Service) Placement(ctx context.Context, sessionID string) (SessionPlace
 }
 
 // NoteStarted records that the owning worker has the session running.
-func (s *Service) NoteStarted(ctx context.Context, sessionID, nodeID string) error {
-	return s.store.PutPlacement(ctx, SessionPlacement{SessionID: sessionID, NodeID: nodeID, State: PlacementRunning, UpdatedAt: s.now()})
+// engineID is the id its local engine assigned; empty keeps the previous one.
+func (s *Service) NoteStarted(ctx context.Context, sessionID, nodeID, engineID string) error {
+	return s.store.PutPlacement(ctx, SessionPlacement{SessionID: sessionID, NodeID: nodeID, State: PlacementRunning, EngineID: engineID, UpdatedAt: s.now()})
 }
 
 // NoteFailed records a start failure without moving the session.

@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -61,6 +62,45 @@ func TestEnrollHeartbeatAndExpiryDoNotImplyDeath(t *testing.T) {
 	}
 	if placement.State != PlacementOffline {
 		t.Fatalf("state = %s, want offline without termination", placement.State)
+	}
+}
+
+func TestStartedEventRecordsTheWorkerEngineID(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	svc := NewService(store, hub)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go applyEvents(ctx, hub, svc, nil)
+	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Heartbeat(ctx, "w", nil)
+	fake := &recordingConn{}
+	hub.Attach("w", fake)
+	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "placement-1", Kind: "worker", NodeID: "w"}, SpawnRequest{SessionID: "placement-1", Kind: "worker"}); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]string{"sessionId": "engine-9"})
+	hub.Publish(Event{NodeID: "w", SessionID: "placement-1", Kind: EventStarted, Payload: body})
+	deadline := time.Now().Add(2 * time.Second)
+	var got SessionPlacement
+	for {
+		p, ok, err := store.Placement(ctx, "placement-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok && p.State == PlacementRunning {
+			got = p
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("placement did not become running: %+v", p)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got.EngineID != "engine-9" || got.NodeID != "w" {
+		t.Fatalf("placement = %+v", got)
 	}
 }
 
@@ -139,6 +179,18 @@ func (c *recordingConn) Send(_ context.Context, cmd Command) error {
 }
 
 func (c *recordingConn) Close() error { return nil }
+
+func TestLocalCapabilitiesKeepsCredentialsOffTheWire(t *testing.T) {
+	caps, err := LocalCapabilities(context.Background(), func(context.Context) ([]string, []string, error) {
+		return []string{"claude-code", "codex"}, []string{"claude-code"}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(caps) != 2 || !caps[0].LoggedIn || caps[1].LoggedIn || caps[1].Harness != "codex" {
+		t.Fatalf("caps = %+v", caps)
+	}
+}
 
 func TestDialerRejectsIncompleteConfig(t *testing.T) {
 	err := (&Dialer{}).Run(context.Background())

@@ -86,3 +86,26 @@ func jsonRaw(message string) json.RawMessage {
 	body, _ := json.Marshal(map[string]string{"message": message})
 	return body
 }
+
+// LocalCapabilities reads the daemon's agent inventory. A harness counts as
+// logged in only when its auth probe says so. An inventory error reports no
+// capabilities, which makes the control plane refuse that harness rather than
+// guess.
+func LocalCapabilities(ctx context.Context, list func(context.Context) ([]string, []string, error)) ([]Capability, error) {
+	if list == nil {
+		return nil, nil
+	}
+	installed, authorized, err := list(ctx)
+	if err != nil {
+		return nil, err
+	}
+	auth := map[string]bool{}
+	for _, id := range authorized {
+		auth[id] = true
+	}
+	out := make([]Capability, 0, len(installed))
+	for _, id := range installed {
+		out = append(out, Capability{Harness: id, LoggedIn: auth[id]})
+	}
+	return out, nil
+}

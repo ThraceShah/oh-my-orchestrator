@@ -83,6 +83,7 @@ func NewRouterWithControl(cfg config.Config, log *slog.Logger, termMgr *terminal
 	mountTerminalMux(r, termMgr, log, cfg.AllowedOrigins)
 	mountControl(r, control)
 	mountTelemetry(r, cfg, deps.Telemetry)
+	mountFleet(r, deps.Fleet)
 	mountUsageFlush(r, deps.UsageFlush)
 	mountTelemetryIdentity(r, deps.TelemetryIdentity)
 	mountMobile(r, deps.Mobile)
@@ -92,6 +93,10 @@ func NewRouterWithControl(cfg config.Config, log *slog.Logger, termMgr *terminal
 	api.Register(r)
 
 	return r
+}
+
+func mountFleet(r chi.Router, svc controllers.FleetService) {
+	(&controllers.FleetController{Svc: svc}).Register(r)
 }
 
 func mountUsageFlush(r chi.Router, flush func(context.Context)) {

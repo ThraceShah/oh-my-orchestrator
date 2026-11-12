@@ -39,4 +39,4 @@ ao daemon
 
 ## What is not included
 
-Terminal bytes and chat events are not yet proxied through the control plane. A pinned spawn is delivered to the worker and the worker starts it in its own engine; reconnecting a terminal to the control plane is the next slice. Power-on still needs the broker process to be given the deployment's command.
+Terminal bytes and chat events are not yet proxied through the control plane. A pinned spawn is delivered to the worker, the worker starts it in its own engine, and the control plane records that engine's session id on the placement. Opening the terminal from the control plane is the next slice. Power-on still needs the broker process to be given the deployment's command.

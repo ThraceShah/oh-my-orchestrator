@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"time"
 )
@@ -57,7 +58,7 @@ func applyEvents(ctx context.Context, hub *Hub, svc *Service, log *slog.Logger) 
 			var err error
 			switch ev.Kind {
 			case EventStarted:
-				err = svc.NoteStarted(ctx, ev.SessionID, ev.NodeID)
+				err = svc.NoteStarted(ctx, ev.SessionID, ev.NodeID, engineID(ev))
 			case EventFailed:
 				err = svc.NoteFailed(ctx, ev.SessionID, ev.NodeID, string(ev.Payload))
 			}
@@ -66,6 +67,14 @@ func applyEvents(ctx context.Context, hub *Hub, svc *Service, log *slog.Logger) 
 			}
 		}
 	}
+}
+
+func engineID(ev Event) string {
+	var body struct {
+		SessionID string `json:"sessionId"`
+	}
+	_ = json.Unmarshal(ev.Payload, &body)
+	return body.SessionID
 }
 
 func expire(ctx context.Context, svc *Service, log *slog.Logger) {

@@ -782,6 +782,7 @@ func Run(buildVersion string) error {
 	if cfg.Fleet.Role == "worker" {
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
+			Caps:    func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
 			Handler: fleet.WorkerHandler(sessionSvc, nil, log),
 		}
 		go func() {
@@ -1594,6 +1595,32 @@ func Run(buildVersion string) error {
 		log.Error("cdc pipeline shutdown", "err", err)
 	}
 	return runErr
+}
+
+func workerCapabilities(ctx context.Context, agents interface {
+	List(context.Context) (agentsvc.Inventory, error)
+}) []fleet.Capability {
+	if agents == nil {
+		return nil
+	}
+	caps, err := fleet.LocalCapabilities(ctx, func(ctx context.Context) ([]string, []string, error) {
+		inventory, err := agents.List(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		ids := func(items []agentsvc.Info) []string {
+			out := make([]string, 0, len(items))
+			for _, item := range items {
+				out = append(out, item.ID)
+			}
+			return out
+		}
+		return ids(inventory.Installed), ids(inventory.Authorized), nil
+	})
+	if err != nil {
+		return nil
+	}
+	return caps
 }
 
 func fleetAPI(rt *fleet.Runtime) interface {

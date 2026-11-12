@@ -39,7 +39,7 @@ func newFleetEnrollCommand(ctx *commandContext) *cobra.Command {
 				WakeCommand: wake, ShutdownCommand: shutdown, Identity: identity,
 			}
 			var res fleetEnrollResponse
-			if err := ctx.postJSON(cmd.Context(), "fleet/nodes", req, &res); err != nil {
+			if err := ctx.postLoopbackJSONDecoded(cmd.Context(), "/internal/fleet/nodes", req, &res); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "enrolled %s\ntoken: %s\n", res.Node.ID, res.Token)
@@ -66,7 +66,7 @@ func newFleetNodesCommand(ctx *commandContext) *cobra.Command {
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var res fleetNodesResponse
-			if err := ctx.getJSON(cmd.Context(), "fleet/nodes", &res); err != nil {
+			if err := ctx.getLoopbackJSON(cmd.Context(), "/internal/fleet/nodes", &res); err != nil {
 				return err
 			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)

@@ -81,6 +81,9 @@ type SessionPlacement struct {
 	NodeID    string    `json:"nodeId,omitempty"`
 	State     Placement `json:"state"`
 	Detail    string    `json:"detail,omitempty"`
+	// EngineID is the session id created by the owning worker's local engine.
+	// It can differ from SessionID, which is the control plane's placement key.
+	EngineID  string    `json:"engineId,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 

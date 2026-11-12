@@ -25,8 +25,11 @@ type FleetController struct {
 }
 
 func (c *FleetController) Register(r chi.Router) {
-	r.Get("/fleet/nodes", c.list)
-	r.Post("/fleet/nodes", c.enroll)
+	// Loopback only. The fleet enrollment token is a credential, and these
+	// routes are operator plumbing rather than part of the mobile API, so they
+	// stay beside the other internal routes and out of the OpenAPI app surface.
+	r.Get("/internal/fleet/nodes", c.list)
+	r.Post("/internal/fleet/nodes", c.enroll)
 }
 
 type fleetEnrollRequest struct {

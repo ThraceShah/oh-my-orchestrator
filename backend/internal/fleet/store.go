@@ -57,10 +57,19 @@ CREATE TABLE IF NOT EXISTS fleet_session_placements (
     node_id TEXT NOT NULL DEFAULT '',
     state TEXT NOT NULL,
     detail TEXT NOT NULL DEFAULT '',
+    engine_id TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL
 );
 `)
-	return err
+	if err != nil {
+		return err
+	}
+	// Tables created before engine_id existed keep working. A duplicate-column
+	// error means this database already has the column.
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE fleet_session_placements ADD COLUMN engine_id TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		return err
+	}
+	return nil
 }
 
 // Enrollment is the one-time result of adding a node. Token is shown once.
@@ -242,14 +251,15 @@ func (s *Store) PutPlacement(ctx context.Context, p SessionPlacement) error {
 		p.UpdatedAt = s.now()
 	}
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO fleet_session_placements (session_id, node_id, state, detail, updated_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO fleet_session_placements (session_id, node_id, state, detail, engine_id, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(session_id) DO UPDATE SET
     node_id = excluded.node_id,
     state = excluded.state,
     detail = excluded.detail,
+    engine_id = CASE WHEN excluded.engine_id = '' THEN fleet_session_placements.engine_id ELSE excluded.engine_id END,
     updated_at = excluded.updated_at`,
-		p.SessionID, p.NodeID, string(p.State), p.Detail, p.UpdatedAt.UTC().Format(time.RFC3339Nano))
+		p.SessionID, p.NodeID, string(p.State), p.Detail, p.EngineID, p.UpdatedAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
@@ -257,8 +267,8 @@ func (s *Store) Placement(ctx context.Context, sessionID string) (SessionPlaceme
 	var p SessionPlacement
 	var state, updated string
 	err := s.db.QueryRowContext(ctx, `
-SELECT session_id, node_id, state, detail, updated_at FROM fleet_session_placements WHERE session_id = ?`, sessionID).
-		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &updated)
+SELECT session_id, node_id, state, detail, engine_id, updated_at FROM fleet_session_placements WHERE session_id = ?`, sessionID).
+		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return SessionPlacement{}, false, nil
 	}
