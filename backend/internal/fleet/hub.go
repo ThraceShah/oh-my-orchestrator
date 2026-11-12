@@ -37,11 +37,12 @@ type Event struct {
 }
 
 const (
-	EventStarted = "started"
-	EventFailed  = "failed"
-	EventOutput  = "output"
-	EventChat    = "chat"
-	EventPower   = "power"
+	EventStarted     = "started"
+	EventFailed      = "failed"
+	EventOutput      = "output"
+	EventChat        = "chat"
+	EventChatChanged = "chat-changed"
+	EventPower       = "power"
 )
 
 // Conn is one dialed worker. Send must be safe for one writer at a time; Hub

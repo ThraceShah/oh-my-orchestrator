@@ -43,6 +43,7 @@ import (
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/browserruntime"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/browserstream"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/caller"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/cdc"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/clienttz"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/codexops"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
@@ -337,6 +338,17 @@ func Run(buildVersion string) error {
 	cdcPipe, err := startCDC(ctx, store, log)
 	if err != nil {
 		return err
+	}
+	if fleetRuntime != nil {
+		broadcaster := cdcPipe.Broadcaster
+		fleetRuntime.NotifyLive(func(ev fleet.Event) {
+			broadcaster.Publish(cdc.Event{
+				SessionID: ev.SessionID,
+				Type:      cdc.EventSessionUpdated,
+				Payload:   ev.Payload,
+				CreatedAt: time.Now().UTC(),
+			})
+		})
 	}
 
 	// Terminal streaming: the selected platform runtime supplies the
@@ -806,8 +818,15 @@ func Run(buildVersion string) error {
 			Handler:    fleet.WorkerHandlerWithChat(sessionSvc, sessionMessenger{sessionSvc}, power, workerChat(chatSvc), log),
 			OnTerminal: bridge.Handle,
 		}
+		dialer.StartNotifications()
 		go func() {
 			defer sentryobs.RecoverBackground()
+			unsub := cdcPipe.Broadcaster.Subscribe(func(e cdc.Event) {
+				if ev, ok := fleet.ChatChanged(e.SessionID, e.Payload); ok {
+					dialer.Notify(ev)
+				}
+			})
+			defer unsub()
 			if err := dialer.Run(ctx); err != nil && ctx.Err() == nil {
 				log.Error("fleet worker dialer stopped", "err", err)
 			}

@@ -21,12 +21,35 @@ type Dialer struct {
 	Handler    func(context.Context, Command) Event
 	OnTerminal func(context.Context, TerminalMessage, func(TerminalMessage) error)
 	Interval   time.Duration
+	notify     chan Event
+}
+
+// Notify queues an event for the control plane. It does not block, and it
+// drops the event when the worker is not connected or the queue is full.
+func (d *Dialer) Notify(ev Event) {
+	if d == nil || d.notify == nil {
+		return
+	}
+	select {
+	case d.notify <- ev:
+	default:
+	}
+}
+
+// StartNotifications prepares the queue before the dialer is running, so a
+// chat update that arrives while the socket is down is kept for the next
+// connection instead of being dropped.
+func (d *Dialer) StartNotifications() {
+	if d != nil && d.notify == nil {
+		d.notify = make(chan Event, 32)
+	}
 }
 
 func (d *Dialer) Run(ctx context.Context) error {
 	if d.URL == "" || d.NodeID == "" || d.Token == "" {
 		return errors.New("fleet dialer needs a url, node id, and token")
 	}
+	d.StartNotifications()
 	interval := d.Interval
 	if interval <= 0 {
 		interval = DefaultHeartbeatInterval
@@ -106,6 +129,14 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 			if err := writer.write(ctx, Frame{Type: FrameHeartbeat, NodeID: d.NodeID, Caps: d.capabilities()}); err != nil {
 				return err
 			}
+		case ev, ok := <-d.notifications():
+			if !ok {
+				continue
+			}
+			ev.NodeID = d.NodeID
+			if err := writer.write(ctx, Frame{Type: FrameEvent, Event: &ev}); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -119,6 +150,13 @@ func (c *lockedConn) write(ctx context.Context, frame Frame) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return writeFrame(ctx, c.conn, frame)
+}
+
+func (d *Dialer) notifications() <-chan Event {
+	if d.notify == nil {
+		return nil
+	}
+	return d.notify
 }
 
 func (d *Dialer) capabilities() []Capability {

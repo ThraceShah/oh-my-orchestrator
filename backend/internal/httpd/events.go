@@ -183,6 +183,19 @@ func parseEventsAfter(r *http.Request) (int64, error) {
 }
 
 func writeSSEEvent(w http.ResponseWriter, flusher http.Flusher, e cdc.Event, sentSeq *int64) error {
+	// Seq 0 is a live hint, not a durable change_log row. It must not move the
+	// client's cursor: a later real event still has to be delivered.
+	if e.Seq == 0 {
+		data, err := json.Marshal(e)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", sseEventName(e.Type), data); err != nil {
+			return err
+		}
+		flusher.Flush()
+		return nil
+	}
 	if e.Seq <= *sentSeq {
 		return nil
 	}

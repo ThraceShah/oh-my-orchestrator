@@ -76,7 +76,7 @@ func TestStartedEventRecordsTheWorkerEngineID(t *testing.T) {
 	svc := NewService(store, hub)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go applyEvents(ctx, hub, svc, nil)
+	go applyEvents(ctx, hub, svc, nil, nil)
 	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
 		t.Fatal(err)
 	}
@@ -319,6 +319,43 @@ func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
 	}
 	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) || board[0].TerminalHandleID != TerminalHandle("engine-1") {
 		t.Fatalf("board = %+v", board)
+	}
+}
+
+func TestChatChangedIgnoresEventsWithoutAConversation(t *testing.T) {
+	if _, ok := ChatChanged("engine-1", []byte(`{"id":"engine-1"}`)); ok {
+		t.Fatal("an id-only update was forwarded")
+	}
+	ev, ok := ChatChanged("engine-1", []byte(`{"conversationId":"conv-1"}`))
+	if !ok || ev.Kind != EventChatChanged || ev.SessionID != "engine-1" {
+		t.Fatalf("event=%+v ok=%v", ev, ok)
+	}
+}
+
+func TestChatChangeNotifiesTheControlPlane(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "fleet.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	rt, err := StartControl(ctx, db, "", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make(chan Event, 1)
+	rt.NotifyLive(func(ev Event) {
+		got <- ev
+	})
+	rt.Hub.Publish(Event{Kind: EventChatChanged, SessionID: "engine-1", Payload: []byte(`{"conversationId":"conv-1"}`)})
+	select {
+	case ev := <-got:
+		if ev.SessionID != "engine-1" {
+			t.Fatalf("event = %+v", ev)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("live notifier was not called")
 	}
 }
 
