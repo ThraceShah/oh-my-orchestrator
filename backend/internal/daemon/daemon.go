@@ -21,74 +21,75 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/binaryutil"
-	claudecodeagent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	codexagent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/modelcatalog"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agentaccount"
-	chatdriveracp "github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/acp"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/codexappserver"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/persistenthost"
-	chatdriverregistry "github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/registry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/cuadriver"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/reviewer"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/runtimeselect"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/systemexec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry/policyauthority"
-	"github.com/aoagents/agent-orchestrator/backend/internal/agentlaunch"
-	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/autoreview"
-	"github.com/aoagents/agent-orchestrator/backend/internal/browserruntime"
-	"github.com/aoagents/agent-orchestrator/backend/internal/browserstream"
-	"github.com/aoagents/agent-orchestrator/backend/internal/caller"
-	"github.com/aoagents/agent-orchestrator/backend/internal/clienttz"
-	"github.com/aoagents/agent-orchestrator/backend/internal/codexops"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemon/supervisor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/datadirlock"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/mobilebridge"
-	"github.com/aoagents/agent-orchestrator/backend/internal/notify"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/sentryobs"
-	usagepipeline "github.com/aoagents/agent-orchestrator/backend/internal/observe/usage"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/presence"
-	"github.com/aoagents/agent-orchestrator/backend/internal/preview"
-	"github.com/aoagents/agent-orchestrator/backend/internal/previewserver"
-	"github.com/aoagents/agent-orchestrator/backend/internal/push"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentaccounts"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentauth"
-	awakesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/awake"
-	browsersvc "github.com/aoagents/agent-orchestrator/backend/internal/service/browser"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/computeruse"
-	cuesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/cue"
-	devimportsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/devimport"
-	fsbrowsersvc "github.com/aoagents/agent-orchestrator/backend/internal/service/fsbrowser"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/githubpat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/hookprocess"
-	importsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/importer"
-	linkpreviewsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/linkpreview"
-	notificationsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/notification"
-	prsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/pr"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	reportsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/report"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/sessionimport"
-	settingssvc "github.com/aoagents/agent-orchestrator/backend/internal/service/settings"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/shellagent"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systemcheck"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systeminstall"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/terminaltitle"
-	usagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/usage"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
-	"github.com/aoagents/agent-orchestrator/backend/internal/skillassets"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
-	"github.com/aoagents/agent-orchestrator/backend/internal/terminal"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/binaryutil"
+	claudecodeagent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/claudecode"
+	codexagent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/codex"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/modelcatalog"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/opencode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agentaccount"
+	chatdriveracp "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/acp"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/codexappserver"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/persistenthost"
+	chatdriverregistry "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/registry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/cuadriver"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/reviewer"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/runtime/runtimeselect"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/systemexec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/telemetry/policyauthority"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/agentlaunch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/attachmentstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/autoreview"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/browserruntime"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/browserstream"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/caller"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/clienttz"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/codexops"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/daemon/supervisor"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/datadirlock"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/fleet"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/mobilebridge"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/notify"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/sentryobs"
+	usagepipeline "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/usage"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/presence"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/preview"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/previewserver"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/push"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/runfile"
+	agentsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agent"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentaccounts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentauth"
+	awakesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/awake"
+	browsersvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/browser"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/computeruse"
+	cuesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/cue"
+	devimportsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/devimport"
+	fsbrowsersvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/fsbrowser"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/githubpat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/hookprocess"
+	importsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/importer"
+	linkpreviewsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/linkpreview"
+	notificationsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/notification"
+	prsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/pr"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
+	reportsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/report"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/sessionimport"
+	settingssvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/settings"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/shellagent"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systemcheck"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systeminstall"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/terminaltitle"
+	usagesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/usage"
+	sessionmanager "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/session_manager"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/skillassets"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/terminal"
 )
 
 // usageReconcileTick is the safety-net interval for the usage pipeline
@@ -247,6 +248,13 @@ func Run(buildVersion string) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 	defer func() { _ = store.Close() }()
+	var fleetStore *fleet.Store
+	if cfg.Fleet.Role == "control" {
+		fleetStore = fleet.NewStore(store.WriterDB())
+		if err := fleetStore.Migrate(context.Background()); err != nil {
+			return fmt.Errorf("prepare fleet tables: %w", err)
+		}
+	}
 	if _, err := store.RequeueClaimedReports(context.Background()); err != nil {
 		return fmt.Errorf("recover report delivery claims: %w", err)
 	}
@@ -307,6 +315,14 @@ func Run(buildVersion string) error {
 	ctx, stop, stopSignals := daemonShutdownContext()
 	defer stopSignals()
 	defer stop()
+	var fleetRuntime *fleet.Runtime
+	if fleetStore != nil {
+		fleetRuntime, err = fleet.StartControl(ctx, store.WriterDB(), cfg.Fleet.Listen, nil, log)
+		if err != nil {
+			return fmt.Errorf("start fleet control plane: %w", err)
+		}
+		log.Info("fleet control plane ready", "listen", cfg.Fleet.Listen, "node", cfg.Fleet.NodeID)
+	}
 	var usage *usageTelemetryFlusher
 	if remoteTelemetryActive && telemetryIdentity != nil {
 		usage = startUsageTelemetry(ctx, store, telemetrySink, telemetryIdentity, installMilestones(cfg), log)
@@ -759,6 +775,23 @@ func Run(buildVersion string) error {
 		sessionSvc.SetGitHubRepositoryResolver(githubRepos)
 	}
 	projectSvc := projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink, Milestones: installMilestones(cfg), Logger: log, GitHubRepos: githubRepos})
+	if fleetRuntime != nil {
+		placement := &fleet.PlacementService{Fleet: fleetRuntime.Service, Projects: fleet.ProjectConfigHomes{Projects: projectSvc}}
+		sessionSvc.SetFleetPlacement(placement.Place)
+	}
+	if cfg.Fleet.Role == "worker" {
+		dialer := &fleet.Dialer{
+			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
+			Handler: fleet.WorkerHandler(sessionSvc, nil, log),
+		}
+		go func() {
+			defer sentryobs.RecoverBackground()
+			if err := dialer.Run(ctx); err != nil && ctx.Err() == nil {
+				log.Error("fleet worker dialer stopped", "err", err)
+			}
+		}()
+		log.Info("fleet worker dialing control plane", "node", cfg.Fleet.NodeID)
+	}
 	go projectSvc.WarmCanonicalRepos(ctx)
 	reportSessions, ok := sessMgr.(reportSemanticSession)
 	if !ok {
@@ -1244,6 +1277,7 @@ func Run(buildVersion string) error {
 		Browser:                  browserService,
 		BrowserChrome:            browserChrome,
 		LinkPreview:              linkpreviewsvc.New(nil),
+		Fleet:                    fleetAPI(fleetRuntime),
 		PreviewServer:            managedPreview,
 		SessionCapabilities:      browserAuthority,
 		ShellPreviewCapabilities: shellTermSvc,
@@ -1560,6 +1594,16 @@ func Run(buildVersion string) error {
 		log.Error("cdc pipeline shutdown", "err", err)
 	}
 	return runErr
+}
+
+func fleetAPI(rt *fleet.Runtime) interface {
+	Enroll(context.Context, fleet.Node) (fleet.Enrollment, error)
+	Nodes(context.Context) ([]fleet.Node, error)
+} {
+	if rt == nil {
+		return nil
+	}
+	return rt.Service
 }
 
 func telemetryAppVersion(configured, buildVersion string) string {

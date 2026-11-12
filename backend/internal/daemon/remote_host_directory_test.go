@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/mobilebridge"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/mobilebridge"
 )
 
 func TestPublishRemoteHostAddressUsesScopedDigestWithoutRedirects(t *testing.T) {

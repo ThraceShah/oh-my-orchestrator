@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Cua Driver ships official per-user installers for all three platforms, so

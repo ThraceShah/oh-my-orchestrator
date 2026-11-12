@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/agentlaunch"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/agentlaunch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	sessionmanager "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/session_manager"
 )
 
 const cancelInterruptDelay = 150 * time.Millisecond

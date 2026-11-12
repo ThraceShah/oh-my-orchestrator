@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // directHandlePrefix is persisted as part of the opaque runtime handle.

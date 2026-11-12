@@ -15,17 +15,17 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/deliverytelemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/ownership"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/sentryobs"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/reqid"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionartifacts"
-	"github.com/aoagents/agent-orchestrator/backend/internal/telemetrymeta"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/deliverytelemetry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/ownership"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/sentryobs"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/reqid"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	sessionmanager "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/session_manager"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionartifacts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/telemetrymeta"
 )
 
 const maxDisplayNameLen = 100
@@ -258,7 +258,10 @@ type Service struct {
 	// githubIdentity optionally resolves the operator's authenticated GitHub
 	// account so the handle rides along with product telemetry. Nil disables it
 	// and the emitter degrades to anonymous.
-	githubIdentity         ports.ScopedIdentityResolver
+	githubIdentity ports.ScopedIdentityResolver
+	// fleetPlace runs a spawn on an enrolled worker when NodeID or Platform is
+	// set. Nil means this daemon has no fleet, so those fields are rejected.
+	fleetPlace             func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)
 	titleRefinementSlots   chan struct{}
 	titleRefinementMu      sync.Mutex
 	titleRefinementCancels map[domain.SessionID]context.CancelFunc
@@ -379,6 +382,12 @@ func NewWithDeps(d Deps) *Service {
 	return s
 }
 
+// SetFleetPlacement installs the control-plane placement path. It is unset on
+// a daemon that is not running a fleet, which keeps ordinary spawns local.
+func (s *Service) SetFleetPlacement(place func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)) {
+	s.fleetPlace = place
+}
+
 // SetUsageArchiveFlush sends pending session summaries after a user archive.
 func (s *Service) SetUsageArchiveFlush(flush func(context.Context)) {
 	s.usageArchiveFlush = flush
@@ -398,6 +407,12 @@ func (s *Service) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 	}
 	if cfg.ProjectID == "" && cfg.Kind != domain.KindWorker {
 		return domain.Session{}, 0, 0, apierr.Invalid("STANDALONE_WORKER_REQUIRED", "Standalone sessions must be workers", nil)
+	}
+	if strings.TrimSpace(cfg.NodeID) != "" || strings.TrimSpace(cfg.Platform) != "" {
+		if s.fleetPlace == nil {
+			return domain.Session{}, 0, 0, apierr.Invalid("FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane, so nodeId and platform are not available", nil)
+		}
+		return s.fleetPlace(ctx, cfg)
 	}
 	if cfg.Kind == domain.KindOrchestrator {
 		cfg.Async = true

@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	workerautohand "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/autohand"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workerautohand "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/autohand"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 func TestReviewCommandKeepsNativeApprovalsEnabled(t *testing.T) {

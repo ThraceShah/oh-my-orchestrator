@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
-	"github.com/aoagents/agent-orchestrator/backend/internal/terminal"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/runfile"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/terminal"
 )
 
 // Server is the daemon's HTTP server together with its lifecycle: bind the

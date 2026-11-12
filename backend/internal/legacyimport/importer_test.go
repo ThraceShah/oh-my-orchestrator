@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // fakeStore is an in-memory Store with the importer's idempotency semantics.

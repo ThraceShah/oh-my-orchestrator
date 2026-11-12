@@ -1,0 +1,93 @@
+package controllers
+
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/fleet"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+)
+
+// FleetService is the control-plane surface the loopback API exposes. The CLI
+// uses it instead of opening the database beside the running daemon.
+type FleetService interface {
+	Enroll(context.Context, fleet.Node) (fleet.Enrollment, error)
+	Nodes(context.Context) ([]fleet.Node, error)
+}
+
+// FleetController serves node enrollment and listing. A nil service means this
+// daemon is not a control plane.
+type FleetController struct {
+	Svc FleetService
+}
+
+func (c *FleetController) Register(r chi.Router) {
+	r.Get("/fleet/nodes", c.list)
+	r.Post("/fleet/nodes", c.enroll)
+}
+
+type fleetEnrollRequest struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Role            string   `json:"role"`
+	Availability    string   `json:"availability"`
+	Capacity        int      `json:"capacity"`
+	Platforms       []string `json:"platforms,omitempty"`
+	PowerBroker     bool     `json:"powerBroker"`
+	PowerBrokerNode string   `json:"powerBrokerNodeId,omitempty"`
+	WakeCommand     string   `json:"wakeCommand,omitempty"`
+	ShutdownCommand string   `json:"shutdownCommand,omitempty"`
+	Identity        string   `json:"expectedIdentity,omitempty"`
+}
+
+type fleetEnrollResponse struct {
+	Node  fleet.Node `json:"node"`
+	Token string     `json:"token"`
+}
+
+type fleetNodesResponse struct {
+	Nodes []fleet.Node `json:"nodes"`
+}
+
+func (c *FleetController) list(w http.ResponseWriter, r *http.Request) {
+	if c == nil || c.Svc == nil {
+		envelope.WriteAPIError(w, r, http.StatusNotFound, "not_found", "FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane", nil)
+		return
+	}
+	nodes, err := c.Svc.Nodes(r.Context())
+	if err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	if nodes == nil {
+		nodes = []fleet.Node{}
+	}
+	envelope.WriteJSON(w, http.StatusOK, fleetNodesResponse{Nodes: nodes})
+}
+
+func (c *FleetController) enroll(w http.ResponseWriter, r *http.Request) {
+	if c == nil || c.Svc == nil {
+		envelope.WriteAPIError(w, r, http.StatusNotFound, "not_found", "FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane", nil)
+		return
+	}
+	var in fleetEnrollRequest
+	if err := decodeJSON(r, &in); err != nil {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "bad_request", "INVALID_JSON", "Invalid JSON body", nil)
+		return
+	}
+	node := fleet.Node{
+		ID: strings.TrimSpace(in.ID), Name: strings.TrimSpace(in.Name), Role: fleet.Role(in.Role),
+		Availability: fleet.Availability(in.Availability), Capacity: in.Capacity, Platforms: in.Platforms,
+		PowerBroker: in.PowerBroker, PowerBrokerNode: in.PowerBrokerNode,
+		WakeCommand: in.WakeCommand, ShutdownCommand: in.ShutdownCommand, ExpectedIdentity: in.Identity,
+	}
+	enrolled, err := c.Svc.Enroll(r.Context(), node)
+	if err != nil {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "validation", "FLEET_ENROLL_INVALID", err.Error(), nil)
+		return
+	}
+	envelope.WriteJSON(w, http.StatusCreated, fleetEnrollResponse{Node: enrolled.Node, Token: enrolled.Token})
+}

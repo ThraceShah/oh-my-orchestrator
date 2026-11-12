@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/persistenthost"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/processenv"
-	"github.com/aoagents/agent-orchestrator/backend/internal/agentlaunch"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/persistenthost"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/processenv"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/agentlaunch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // clientName identifies AO to the provider. It shows up in the app-server's

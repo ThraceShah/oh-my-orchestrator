@@ -12,12 +12,12 @@ import (
 
 	acpsdk "github.com/coder/acp-go-sdk"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hermes"
-	acpdriver "github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/acp"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/nativeacp"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/hermes"
+	acpdriver "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/acp"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/nativeacp"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // hermesACPVersionTimeout bounds the `hermes acp --version` admission probe.

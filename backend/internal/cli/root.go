@@ -14,11 +14,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemon"
-	"github.com/aoagents/agent-orchestrator/backend/internal/datadirlock"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
-	"github.com/aoagents/agent-orchestrator/backend/internal/processalive"
-	"github.com/aoagents/agent-orchestrator/backend/internal/telemetrymeta"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/daemon"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/datadirlock"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/processalive"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/telemetrymeta"
 )
 
 // Execute runs the ao CLI with process stdio.
@@ -251,6 +251,7 @@ func NewRootCommand(deps Deps) *cobra.Command {
 	root.AddCommand(newCueCommand(ctx))
 	root.AddCommand(newCompletionCommand())
 	root.AddCommand(newVersionCommand())
+	root.AddCommand(newFleetCommand(ctx))
 
 	return root
 }

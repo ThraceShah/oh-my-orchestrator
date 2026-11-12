@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // LegacySwitchHandoffPath is the finalized handoff file the agent switching on

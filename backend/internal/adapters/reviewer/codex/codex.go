@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/reviewer/agentrestore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workeragent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/codex"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/reviewer/agentrestore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Reviewer is the codex code-review adapter.

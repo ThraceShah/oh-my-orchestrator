@@ -12,8 +12,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/pkg/agentcreds"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/pkg/agentcreds"
 )
 
 // The regression this whole ladder exists for: a revoked key in the

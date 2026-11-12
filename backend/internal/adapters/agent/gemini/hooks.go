@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"path/filepath"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hooksjson"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/hooksjson"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 var hooks = hooksjson.Manager{

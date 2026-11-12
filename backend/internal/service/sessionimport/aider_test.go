@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/aider"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/aider"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 func TestAiderProjectHistoryDiscoveryAndNativeMessages(t *testing.T) {

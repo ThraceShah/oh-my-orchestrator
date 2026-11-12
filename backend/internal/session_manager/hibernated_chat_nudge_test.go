@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	browsersvc "github.com/aoagents/agent-orchestrator/backend/internal/service/browser"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionguard"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/sqlitetest"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/lifecycle"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	browsersvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/browser"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionguard"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/sqlitetest"
 )
 
 type testLogWriter struct{ t *testing.T }

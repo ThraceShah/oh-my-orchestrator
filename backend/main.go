@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemon"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/daemon"
 )
 
 func main() {

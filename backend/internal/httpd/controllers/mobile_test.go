@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/mobilebridge"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/mobilebridge"
 )
 
 type fakeBridge struct{ enabled bool }

@@ -10,12 +10,12 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/binaryutil"
-	agentregistry "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/registry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/shellterm"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/binaryutil"
+	agentregistry "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/registry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/shellterm"
 )
 
 func TestAccountLoginUsesSessionCodexInsteadOfPATH(t *testing.T) {

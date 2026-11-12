@@ -31,13 +31,13 @@ import (
 	_ "modernc.org/sqlite" // Register the driver for read-only native history queries.
 	sqlite3 "modernc.org/sqlite/lib"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/agentbase"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/binaryutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/terminalui"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/agentbase"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/binaryutil"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/terminalui"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // Plugin supervises the official native interactive terminal.

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	reportsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/report"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	reportsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/report"
+	sessionmanager "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/session_manager"
 )
 
 type reportDeliverySession struct {

@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 var scpStyleGitURL = regexp.MustCompile(`^[^/@:\s]+@[^/:\s]+:(.+)$`)

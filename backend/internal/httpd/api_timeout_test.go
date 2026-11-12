@@ -12,14 +12,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/computeruse"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/sessionimport"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/computeruse"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
+	sessionsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/session"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/sessionimport"
 )
 
 func remainingRequestBudget(ctx context.Context) time.Duration {

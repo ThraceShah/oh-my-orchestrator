@@ -12,8 +12,8 @@ import (
 
 	_ "modernc.org/sqlite" // read-only SQLite driver for OpenCode's session store
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/opencode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // OpenCode keeps every conversation in one global SQLite database rather than a

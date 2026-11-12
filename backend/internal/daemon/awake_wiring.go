@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/sentryobs"
-	awakesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/awake"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/sentryobs"
+	awakesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/awake"
 )
 
 // startAwake isolates optional wake intent failures from daemon startup. Preserve

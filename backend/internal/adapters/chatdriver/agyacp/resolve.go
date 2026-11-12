@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/binaryutil"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/binaryutil"
 )
 
 // serverPathEnvVar points AO at an exact agy_acp_server executable, like

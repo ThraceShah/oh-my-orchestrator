@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/pricing"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/pricing"
 )
 
 const (

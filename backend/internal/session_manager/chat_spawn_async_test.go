@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	browsersvc "github.com/aoagents/agent-orchestrator/backend/internal/service/browser"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	browsersvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/browser"
 )
 
 // deferredBackground captures the asynchronous half so a test can inspect the

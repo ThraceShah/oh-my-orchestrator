@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/shellterm"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/shellterm"
 )
 
 func TestStartRejectsUnstartablePlans(t *testing.T) {

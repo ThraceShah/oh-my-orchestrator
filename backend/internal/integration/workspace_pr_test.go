@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	sessionsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/session"
 )
 
 func TestWorkspacePRDiscoveryAndClaimPersist(t *testing.T) {

@@ -3,7 +3,7 @@ package auggie
 import (
 	"encoding/json"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // DeriveActivityState maps Auggie lifecycle callbacks onto normalized AO

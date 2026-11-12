@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec/specgen"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec/specgen"
 )
 
 type openAPISchemaNode struct {

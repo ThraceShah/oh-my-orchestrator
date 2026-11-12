@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/terminalui"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/terminalui"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 var nativeIDPattern = regexp.MustCompile(`^sess_([0-9a-f]{8}|[0-9a-f]{16})$`)

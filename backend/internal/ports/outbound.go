@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // PRWriter records the PR facts a PR observation carries. The pr table's own DB

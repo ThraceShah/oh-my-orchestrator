@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/pricing"
-	usagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/usage"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/pricing"
+	usagesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/usage"
 )
 
 const (

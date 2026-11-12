@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // minimumKimchiVersion is the oldest Kimchi build known to support ACP mode.

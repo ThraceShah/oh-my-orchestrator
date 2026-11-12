@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	reviewcore "github.com/aoagents/agent-orchestrator/backend/internal/review"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/store"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	reviewcore "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/review"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/store"
 )
 
 // Exercise the launcher boundary with real owner-scoped controllers and SQLite.

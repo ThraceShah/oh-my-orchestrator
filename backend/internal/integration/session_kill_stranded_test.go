@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/workspace/gitworktree"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/sqlitetest"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/workspace/gitworktree"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/lifecycle"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	sessionmanager "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/session_manager"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/sqlitetest"
 )
 
 func runGit(t *testing.T, git, dir string, args ...string) {

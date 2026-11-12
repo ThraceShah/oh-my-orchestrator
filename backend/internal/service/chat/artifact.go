@@ -10,11 +10,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	previewutil "github.com/aoagents/agent-orchestrator/backend/internal/preview"
-	reportsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/report"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionartifacts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/attachmentstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	previewutil "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/preview"
+	reportsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/report"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionartifacts"
 )
 
 var _ reportsvc.ArtifactRecorder = (*Service)(nil)

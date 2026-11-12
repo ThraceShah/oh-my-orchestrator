@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	workercrush "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/crush"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workercrush "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/crush"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // HostTrustWarning documents that Crush relies on its normal interactive

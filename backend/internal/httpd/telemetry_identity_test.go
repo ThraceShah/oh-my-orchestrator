@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	telemetryadapter "github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	telemetryadapter "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/telemetry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
 )
 
 func TestTelemetryIdentityRoutes(t *testing.T) {

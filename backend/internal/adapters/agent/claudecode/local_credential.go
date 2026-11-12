@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/pkg/agentcreds"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/pkg/agentcreds"
 )
 
 // AO keeps two Claude setup-tokens under the AO data dir, never the user's

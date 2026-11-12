@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
 )
 
 type streamingCloneManager struct {

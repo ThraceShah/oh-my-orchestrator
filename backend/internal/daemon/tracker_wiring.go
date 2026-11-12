@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	scmgitlab "github.com/aoagents/agent-orchestrator/backend/internal/adapters/scm/gitlab"
-	trackergithub "github.com/aoagents/agent-orchestrator/backend/internal/adapters/tracker/github"
-	trackergitlab "github.com/aoagents/agent-orchestrator/backend/internal/adapters/tracker/gitlab"
-	trackermulti "github.com/aoagents/agent-orchestrator/backend/internal/adapters/tracker/multi"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	scmgitlab "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/scm/gitlab"
+	trackergithub "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/tracker/github"
+	trackergitlab "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/tracker/gitlab"
+	trackermulti "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/tracker/multi"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 func newGitHubTracker() (ports.Tracker, error) {

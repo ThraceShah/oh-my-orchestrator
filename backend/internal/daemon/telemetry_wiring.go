@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"time"
 
-	telemetryadapter "github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/sentryobs"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	telemetryadapter "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/telemetry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/sentryobs"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite"
 )
 
 // aggregatedEventNames are the event names prone to bursts (crash loops,

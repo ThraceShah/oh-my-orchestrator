@@ -1,6 +1,6 @@
 package project
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 
 // GetResult is the discriminated result returned by Service.Get.
 type GetResult struct {

@@ -3,7 +3,7 @@ package ports
 import (
 	"errors"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // ErrSessionNotFound reports an observation for an unknown session id.
@@ -99,6 +99,12 @@ type SpawnConfig struct {
 	// the desktop's New Task dialog is open. It is a hint: an absent or expired
 	// token falls back to ordinary workspace creation.
 	TaskPreparation domain.TaskPreparationToken
+
+	// NodeID places the session on one enrolled fleet worker. Empty runs it on
+	// this daemon.
+	NodeID string
+	// Platform constrains automatic fleet placement. Empty imposes none.
+	Platform string
 }
 
 // SpawnAttachment is a single file attached to a spawn request. Data holds the

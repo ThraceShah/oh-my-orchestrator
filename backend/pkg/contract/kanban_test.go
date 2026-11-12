@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/pkg/contract"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/pkg/contract"
 )
 
 // deriveColumn asserts only the stage-one placement. The column is derived from

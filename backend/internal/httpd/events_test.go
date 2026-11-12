@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/cdc"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
 )
 
 type fakeEventSource struct {

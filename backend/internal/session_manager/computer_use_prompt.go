@@ -4,7 +4,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
 )
 
 // envComputerUse on a chat session's `ao mcp` server makes it offer the

@@ -11,12 +11,12 @@ import (
 
 	"github.com/google/uuid"
 
-	claudeagent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/sqlitetest"
+	claudeagent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/claudecode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/lifecycle"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/sqlitetest"
 )
 
 // Exercise production launch selection, lifecycle, Chat and SQLite together.

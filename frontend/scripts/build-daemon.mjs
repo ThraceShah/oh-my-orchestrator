@@ -52,7 +52,7 @@ if (isWindowsDev) {
 }
 
 // Stamp `ao version` so a packaged CLI names its build instead of "dev".
-const cliPackage = "github.com/aoagents/agent-orchestrator/backend/internal/cli";
+const cliPackage = "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/cli";
 const appVersion = JSON.parse(readFileSync(join(frontendRoot, "package.json"), "utf8")).version;
 const ldflags = [
 	`-X ${cliPackage}.Version=${process.argv.includes("--dev") ? `${appVersion}-dev` : appVersion}`,

@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // Intel Macs (#3879, #6621): V8 on x64 makes JIT code executable with

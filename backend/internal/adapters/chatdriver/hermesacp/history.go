@@ -3,7 +3,7 @@ package hermesacp
 import (
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Hermes closes a durable turn that ended without a reply with its own

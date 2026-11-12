@@ -131,6 +131,8 @@ type projectConfig struct {
 	// WorkersRequestReview must round-trip through set-config so a CLI edit
 	// of another field never silently turns it off.
 	WorkersRequestReview bool             `json:"workersRequestReview,omitempty"`
+	OrchestratorHomeNode string           `json:"orchestratorHomeNode,omitempty"`
+	OrchestratorCheckout string           `json:"orchestratorCheckout,omitempty"`
 	Reviewers            []reviewerConfig `json:"reviewers,omitempty"`
 }
 

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	scmgitlab "github.com/aoagents/agent-orchestrator/backend/internal/adapters/scm/gitlab"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	scmgitlab "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/scm/gitlab"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 // recordedReq captures one inbound HTTP request so tests can assert against

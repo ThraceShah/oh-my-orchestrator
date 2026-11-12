@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cursor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/gemini"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/grok"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/pi"
-	agentregistry "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/registry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/claudecode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/codex"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/cursor"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/gemini"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/grok"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/opencode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/pi"
+	agentregistry "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/registry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 type viewerGate struct {

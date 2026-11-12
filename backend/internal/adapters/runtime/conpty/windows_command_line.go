@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 const maxWindowsCommandLineUTF16 = 32767

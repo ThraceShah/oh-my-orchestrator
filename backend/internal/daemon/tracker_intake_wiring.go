@@ -4,11 +4,11 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	trackerintake "github.com/aoagents/agent-orchestrator/backend/internal/observe/trackerintake"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	trackerintake "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/trackerintake"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	sessionsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/session"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite"
 )
 
 // startTrackerIntake starts the intake observer when cfg.TrackerIntake is on.

@@ -15,13 +15,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/terminalui"
-	"github.com/aoagents/agent-orchestrator/backend/internal/agentlaunch"
-	"github.com/aoagents/agent-orchestrator/backend/internal/caller"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/browser"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/terminalui"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/agentlaunch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/caller"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/browser"
 )
 
 // ShellRuntime is the slice of the runtime adapter a shell terminal needs:

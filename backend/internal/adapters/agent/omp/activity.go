@@ -1,6 +1,6 @@
 package omp
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 
 // DeriveActivityState maps callbacks from AO's managed OMP extension onto the
 // durable activity states used by session status derivation.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
 )
 
 // TestDefaultLoadsEmbeddedSpec is the smoke test for //go:embed wiring:

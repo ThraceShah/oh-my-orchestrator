@@ -12,11 +12,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/requestscope"
-	cuesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/cue"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/requestscope"
+	cuesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/cue"
 )
 
 // CueService is the controller-facing project cue contract.

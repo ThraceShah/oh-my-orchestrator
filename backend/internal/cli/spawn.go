@@ -37,6 +37,8 @@ type spawnOptions struct {
 	noTakeover      bool
 	skipAgentCheck  bool
 	trackerProvider string
+	node            string
+	platform        string
 }
 
 // spawnRequest mirrors the daemon's SpawnSessionRequest body for
@@ -59,7 +61,9 @@ type spawnRequest struct {
 	// Async publishes a Chat session as starting, with its prompt queued, before
 	// the worktree and agent are up, as the desktop's new task does. The CLI
 	// then waits for the start to settle so failures still reach the caller.
-	Async bool `json:"async,omitempty"`
+	Async    bool   `json:"async,omitempty"`
+	NodeID   string `json:"nodeId,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
 type spawnedSession struct {
@@ -190,6 +194,8 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 				DisplayName:         name,
 				DisplayNameExplicit: true,
 				Async:               !opts.standalone,
+				NodeID:              strings.TrimSpace(opts.node),
+				Platform:            strings.TrimSpace(opts.platform),
 			}
 			var res spawnResult
 			if err := ctx.postSetupJSON(cmd.Context(), "sessions", req, &res); err != nil {
@@ -263,6 +269,8 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 	f.StringVar(&opts.claimPR, "claim-pr", "", "Claim PR ownership metadata only for the spawned session; does not check out the PR branch")
 	f.BoolVar(&opts.noTakeover, "no-takeover", false, "Refuse if another active session owns the claimed PR (requires --claim-pr)")
 	f.BoolVar(&opts.skipAgentCheck, "skip-agent-check", false, "Skip CLI readiness warnings (the daemon still validates launch readiness)")
+	f.StringVar(&opts.node, "node", "", "Fleet node that runs this session; omit to run it on this daemon")
+	f.StringVar(&opts.platform, "platform", "", "OS family required when the control plane chooses a fleet node")
 	return cmd
 }
 

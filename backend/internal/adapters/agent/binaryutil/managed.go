@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/hookutil"
 )
 
 // managedBinDir is the directory of AO's managed harness launchers, set once

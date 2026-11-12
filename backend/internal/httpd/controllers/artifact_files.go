@@ -22,15 +22,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	previewutil "github.com/aoagents/agent-orchestrator/backend/internal/preview"
-	"github.com/aoagents/agent-orchestrator/backend/internal/renderpage"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionartifacts"
-	"github.com/aoagents/agent-orchestrator/backend/internal/workspacewatch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/attachmentstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	previewutil "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/preview"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/renderpage"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionartifacts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/workspacewatch"
 )
 
 const (

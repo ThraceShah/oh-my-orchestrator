@@ -5,9 +5,9 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cursorstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/nativeconfig"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/cursorstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/nativeconfig"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 var (

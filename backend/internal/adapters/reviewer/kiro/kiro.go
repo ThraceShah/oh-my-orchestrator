@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/kiro"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/hookutil"
+	workeragent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/kiro"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 const reviewerAgentName = "ao-reviewer"

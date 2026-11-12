@@ -6,10 +6,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	previewutil "github.com/aoagents/agent-orchestrator/backend/internal/preview"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	previewutil "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/preview"
 )
 
 // FileReferenceResolution is derived on demand. Captured code is never rewritten.

@@ -9,8 +9,8 @@ import (
 	"slices"
 	"testing"
 
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/shellterm"
+	agentsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agent"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/shellterm"
 )
 
 type fakeHarnessCatalog struct {

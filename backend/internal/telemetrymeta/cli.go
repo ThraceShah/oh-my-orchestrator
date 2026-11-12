@@ -79,6 +79,9 @@ var legacyActorlessSystemCLICommands = map[string]struct{}{
 var legacyActorlessUserCLICommands = map[string]struct{}{
 	"ao agent":                                  {},
 	"ao agent ls":                               {},
+	"ao fleet":                                  {},
+	"ao fleet enroll":                           {},
+	"ao fleet nodes":                            {},
 	"ao automation":                             {},
 	"ao automation create":                      {},
 	"ao automation delete":                      {},

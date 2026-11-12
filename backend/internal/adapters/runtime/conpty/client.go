@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/inputdelay"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/runtime/inputdelay"
 )
 
 const (

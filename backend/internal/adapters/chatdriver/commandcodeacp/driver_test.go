@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	acpdriver "github.com/aoagents/agent-orchestrator/backend/internal/adapters/chatdriver/acp"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	acpdriver "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/chatdriver/acp"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 func TestConfigureAlwaysLaunchesACPWithAutomationFlags(t *testing.T) {

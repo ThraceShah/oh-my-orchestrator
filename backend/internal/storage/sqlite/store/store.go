@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/gen"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/gen"
 )
 
 // Store is the SQLite-backed persistence layer. It routes writes to a single
@@ -141,6 +141,10 @@ func NewStore(writeDB, readDB *sql.DB) *Store {
 		writeMu: newContextMutex(),
 	}
 }
+
+// WriterDB is the single writer connection. Fleet tables use it directly so
+// they share the daemon database without a second migration toolchain.
+func (s *Store) WriterDB() *sql.DB { return s.writeDB }
 
 // Close closes both pools.
 func (s *Store) Close() error {

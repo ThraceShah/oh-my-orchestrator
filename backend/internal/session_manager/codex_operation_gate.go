@@ -3,9 +3,9 @@ package sessionmanager
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/codexops"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/codexops"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 func (m *Manager) acquireCodexControllerAdmission(ctx context.Context, harness domain.AgentHarness) (func(), error) {

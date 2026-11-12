@@ -19,9 +19,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/nativeconfig"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/nativeconfig"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
 )
 
 // recentDays is the window of activity a chat needs to be offered. Neither

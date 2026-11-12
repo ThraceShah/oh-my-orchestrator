@@ -3,10 +3,10 @@ package daemon
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	usagepipeline "github.com/aoagents/agent-orchestrator/backend/internal/observe/usage"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentaccounts"
-	usagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/usage"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	usagepipeline "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/usage"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentaccounts"
+	usagesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/usage"
 )
 
 type freshUsageSummary struct {

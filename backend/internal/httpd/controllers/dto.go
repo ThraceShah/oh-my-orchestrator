@@ -6,23 +6,23 @@ import (
 	"sort"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/devimport"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentaccounts"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentauth"
-	chatsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/chat"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/computeruse"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/sessionimport"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systemcheck"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systeminstall"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/devimport"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/legacyimport"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	agentsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agent"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentaccounts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentauth"
+	chatsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/chat"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/computeruse"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
+	sessionsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/session"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/sessionimport"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systemcheck"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systeminstall"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/mobilebridge"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/mobilebridge"
 )
 
 // ConversationFindParam identifies the chat whose retained text is searched.
@@ -661,6 +661,13 @@ type SpawnSessionRequest struct {
 	// to learn whether the start succeeded. Ignored for standalone and TUI
 	// sessions, which always start before the response.
 	Async bool `json:"async,omitempty"`
+	// NodeID asks the control plane to run this session on one enrolled worker.
+	// Empty keeps the session on this daemon, which is the only behavior when
+	// no fleet is configured.
+	NodeID string `json:"nodeId,omitempty"`
+	// Platform constrains automatic placement to a worker that offers it.
+	// It does nothing when NodeID is set.
+	Platform string `json:"platform,omitempty"`
 }
 
 // AttachmentInput is one file attached to a spawn, delegate, stage, or send

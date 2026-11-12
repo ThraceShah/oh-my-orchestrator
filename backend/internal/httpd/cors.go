@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	previewutil "github.com/aoagents/agent-orchestrator/backend/internal/preview"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	previewutil "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/preview"
 )
 
 // corsMiddleware grants cross-origin read access to the allowlisted browser

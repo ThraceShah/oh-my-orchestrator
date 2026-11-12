@@ -6,7 +6,7 @@
 // grained state (claude-code, codex, droid) keep their own deriver.
 package activitystate
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 
 // StandardDeriveActivityState maps a hook sub-command name onto an AO activity
 // state. The bool is false when the event carries no activity signal. The

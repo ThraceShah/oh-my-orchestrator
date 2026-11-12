@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cursor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	workeragent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/cursor"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/hookutil"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 const (

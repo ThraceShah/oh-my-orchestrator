@@ -20,18 +20,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/memcode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/modelcatalog"
-	"github.com/aoagents/agent-orchestrator/backend/internal/agentlaunch"
-	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionartifacts"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionguard"
-	"github.com/aoagents/agent-orchestrator/backend/internal/skillassets"
-	"github.com/aoagents/agent-orchestrator/backend/internal/termtheme"
-	"github.com/aoagents/agent-orchestrator/backend/internal/tmuxbin"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/memcode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/modelcatalog"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/agentlaunch"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/attachmentstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionartifacts"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionguard"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/skillassets"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/termtheme"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/tmuxbin"
 )
 
 // Sentinel errors returned by the Session Manager; callers match them with

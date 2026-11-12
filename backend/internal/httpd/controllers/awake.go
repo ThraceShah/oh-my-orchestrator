@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	awakesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/awake"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	awakesvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/awake"
 )
 
 // AwakeService defines loopback-only desktop wake operations.

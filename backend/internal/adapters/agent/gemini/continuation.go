@@ -16,9 +16,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/importcopy"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/nativeconfig"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/importcopy"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/nativeconfig"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/claudecode"
 )
 
 func TestClaudeLoginRunsEverySupportedLoginMethod(t *testing.T) {

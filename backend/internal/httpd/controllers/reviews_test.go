@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	reviewcore "github.com/aoagents/agent-orchestrator/backend/internal/review"
-	reviewsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/review"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	reviewcore "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/review"
+	reviewsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/review"
 )
 
 type fakeReviewService struct {

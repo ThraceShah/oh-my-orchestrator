@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
 )
 
 // ErrInvalidCredentials reports that GitHub rejected the stored credential.

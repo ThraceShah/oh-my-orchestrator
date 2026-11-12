@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
 )
 
 // TestCORS exercises the allowlist boundary on a real router: trusted origins

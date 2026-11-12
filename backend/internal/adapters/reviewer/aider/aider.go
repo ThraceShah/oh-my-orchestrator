@@ -4,9 +4,9 @@ package aider
 import (
 	"context"
 
-	workeraider "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/aider"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workeraider "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/aider"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Reviewer builds Aider's interactive reviewer command.

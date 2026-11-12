@@ -8,12 +8,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	reviewcore "github.com/aoagents/agent-orchestrator/backend/internal/review"
-	reviewsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/review"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	reviewcore "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/review"
+	reviewsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/review"
 )
 
 // ListReviewsResponse is the body of GET /api/v1/sessions/{sessionId}/reviews.

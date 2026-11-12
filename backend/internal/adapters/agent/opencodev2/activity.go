@@ -1,6 +1,6 @@
 package opencodev2
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 
 // DeriveActivityState maps normalized events emitted by the managed OpenCode 2
 // plugin onto AO activity states.

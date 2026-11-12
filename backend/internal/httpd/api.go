@@ -10,19 +10,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/attachmentstore"
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/clienttz"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/mobilebridge"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/presence"
-	prsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/pr"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	reviewsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/review"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/attachmentstore"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/cdc"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/clienttz"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apispec"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/mobilebridge"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/presence"
+	prsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/pr"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
+	reviewsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/review"
 )
 
 // APIDeps bundles every service the API layer's controllers depend on.
@@ -98,6 +98,9 @@ type APIDeps struct {
 	// LinkPreview unfurls external URLs for the renderer's hover cards; nil
 	// leaves the route answering 501.
 	LinkPreview controllers.LinkPreviewService
+	// Fleet is set only on a control-plane daemon. Nil answers enrollment and
+	// listing with FLEET_NOT_CONFIGURED.
+	Fleet controllers.FleetService
 
 	// Presence tracks which mobile devices are currently running the app.
 	// Nil disables presence tracking (the roster then reports every device offline).
@@ -179,6 +182,7 @@ type API struct {
 	linkPreview   *controllers.LinkPreviewController
 	github        *controllers.GitHubController
 	events        *EventsController
+	fleet         *controllers.FleetController
 }
 
 // NewAPI constructs the API surface from its dependencies. cfg carries the
@@ -202,6 +206,7 @@ func newAPIWithLogger(cfg config.Config, deps APIDeps, log *slog.Logger) *API {
 		projects: &controllers.ProjectsController{
 			Mgr: deps.Projects,
 		},
+		fleet: &controllers.FleetController{Svc: deps.Fleet},
 		sessions: &controllers.SessionsController{
 			Svc:                      deps.Sessions,
 			Projects:                 deps.Projects,
@@ -355,6 +360,7 @@ func (a *API) Register(root chi.Router) {
 			a.codexAccounts.Register(r)
 			a.agentAccounts.Register(r)
 			a.projects.Register(r)
+			a.fleet.Register(r)
 			a.sessions.Register(r)
 			a.automations.Register(r)
 			a.desktop.Register(r)

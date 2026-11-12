@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	claudeagent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	browsersvc "github.com/aoagents/agent-orchestrator/backend/internal/service/browser"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/sqlitetest"
+	claudeagent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/claudecode"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	browsersvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/browser"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/storage/sqlite/sqlitetest"
 )
 
 // neverStartedChatOrchestrator is an orchestrator whose Chat controller never

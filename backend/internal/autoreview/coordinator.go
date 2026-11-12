@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	reviewcore "github.com/aoagents/agent-orchestrator/backend/internal/review"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	reviewcore "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/review"
 )
 
 const (

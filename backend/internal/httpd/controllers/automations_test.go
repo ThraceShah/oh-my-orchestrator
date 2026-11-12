@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	automationsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/automation"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	automationsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/automation"
 )
 
 type fakeAutomationService struct {

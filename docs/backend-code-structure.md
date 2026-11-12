@@ -903,7 +903,7 @@ type MyFeature interface {
 // In internal/adapters/myfeature/impl.go
 package impl
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/ports"
+import "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 
 type Impl struct { ... }
 

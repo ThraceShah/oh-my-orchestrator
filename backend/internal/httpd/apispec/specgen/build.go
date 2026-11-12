@@ -11,20 +11,20 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/sessionimport"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/sessionimport"
 
 	jsonschema "github.com/swaggest/jsonschema-go"
 	openapi "github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/agentauth"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/githubpat"
-	importsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/importer"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systeminstall"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/controllers"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/envelope"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agentauth"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/githubpat"
+	importsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/importer"
+	projectsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/project"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systeminstall"
 )
 
 // Build reflects the Go contract types and the operation registry below into

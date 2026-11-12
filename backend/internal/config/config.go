@@ -233,6 +233,40 @@ type Config struct {
 	// AgentBrowserToken is the agent browser's own credential
 	// (AO_AGENT_BROWSER_TOKEN). The daemon adds it; clients never see it.
 	AgentBrowserToken string
+	// Fleet is this process's place in a multi-node deployment. Zero value
+	// keeps the historical single-machine daemon: no fleet listener and no
+	// dial-out. Nothing in it names a machine.
+	Fleet FleetConfig
+}
+
+// FleetConfig is how this daemon joins a fleet. All fields come from the
+// environment. An empty listen address leaves the listener off, and an empty
+// control URL leaves this process as a standalone daemon.
+type FleetConfig struct {
+	// Role is "control" or "worker". Empty means the process is not in a fleet.
+	Role string
+	// NodeID is this process's enrolled id. Required for a worker.
+	NodeID string
+	// Listen is the control plane's worker dial-in address, host:port. Empty
+	// disables it. It is never derived from the loopback API address.
+	Listen string
+	// ControlURL is the worker's dial-in URL, for example
+	// ws://control.example:7443/fleet/v1/connect. Empty disables dial-out.
+	ControlURL string
+	// Token is the enrollment token for this node. It is not logged.
+	Token string
+	// Identity is an optional expected network identity. When the control plane
+	// enrolled this node with one, the observed peer identity must match.
+	Identity string
+	// Availability is "always-on" or "on-demand" for a worker.
+	Availability string
+	// Capacity is how many sessions a worker will accept. Zero means unset.
+	Capacity int
+	// Platforms are the OS families this worker offers, comma-separated.
+	Platforms []string
+	// PowerBroker reports that this worker can run another node's configured
+	// power commands. The commands themselves are not in this config.
+	PowerBroker bool
 }
 
 // Addr returns the host:port the HTTP server binds. It uses net.JoinHostPort so
@@ -271,6 +305,16 @@ func (c Config) Addr() string {
 //	AO_CLOUD_CONTROL_PLANE_URL cloud control plane base URL (trimmed, must be http(s))
 //	AO_AGENT_BROWSER_URL       the host's agent browser (loopback http URL, default none)
 //	AO_AGENT_BROWSER_TOKEN     that browser's credential (trimmed, required with AO_AGENT_BROWSER_URL)
+//	AO_FLEET_ROLE              control|worker (default empty, fleet disabled)
+//	AO_FLEET_NODE_ID           this node's enrolled id
+//	AO_FLEET_LISTEN            control-plane dial-in address, host:port (default off)
+//	AO_FLEET_CONTROL_URL       worker dial-in websocket URL (default off)
+//	AO_FLEET_TOKEN             this node's enrollment token
+//	AO_FLEET_IDENTITY          optional expected network identity
+//	AO_FLEET_AVAILABILITY      always-on|on-demand (worker, default always-on)
+//	AO_FLEET_CAPACITY          worker session limit (default 1)
+//	AO_FLEET_PLATFORMS         comma-separated OS families the worker offers
+//	AO_FLEET_POWER_BROKER      off|on, worker can run configured power commands
 //
 // The bind host is not configurable: the daemon is loopback-only by design.
 func Load() (Config, error) {
@@ -547,6 +591,12 @@ func Load() (Config, error) {
 		}
 	}
 
+	fleet, err := resolveFleet()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Fleet = fleet
+
 	runFile, err := resolveRunFilePath()
 	if err != nil {
 		return Config{}, err
@@ -724,9 +774,74 @@ func newAppRunID() string {
 // resolveRunFilePath picks where running.json lives. An explicit AO_RUN_FILE
 // wins; otherwise it sits under the canonical AO home directory so the CLI and
 // Electron supervisor share one handshake location.
+func resolveFleet() (FleetConfig, error) {
+	role := strings.ToLower(strings.TrimSpace(os.Getenv("AO_FLEET_ROLE")))
+	if role != "" && role != "control" && role != "worker" {
+		return FleetConfig{}, fmt.Errorf("AO_FLEET_ROLE must be control or worker")
+	}
+	availability := strings.ToLower(strings.TrimSpace(os.Getenv("AO_FLEET_AVAILABILITY")))
+	if availability == "" {
+		availability = "always-on"
+	}
+	if availability != "always-on" && availability != "on-demand" {
+		return FleetConfig{}, fmt.Errorf("AO_FLEET_AVAILABILITY must be always-on or on-demand")
+	}
+	capacity := 1
+	if raw := strings.TrimSpace(os.Getenv("AO_FLEET_CAPACITY")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			return FleetConfig{}, fmt.Errorf("AO_FLEET_CAPACITY must be a positive integer")
+		}
+		capacity = n
+	}
+	broker := false
+	if raw := strings.TrimSpace(os.Getenv("AO_FLEET_POWER_BROKER")); raw != "" {
+		v, err := parseToggleEnv("AO_FLEET_POWER_BROKER", raw)
+		if err != nil {
+			return FleetConfig{}, err
+		}
+		broker = v
+	}
+	var platforms []string
+	for _, part := range strings.Split(os.Getenv("AO_FLEET_PLATFORMS"), ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			platforms = append(platforms, part)
+		}
+	}
+	cfg := FleetConfig{
+		Role:         role,
+		NodeID:       strings.TrimSpace(os.Getenv("AO_FLEET_NODE_ID")),
+		Listen:       strings.TrimSpace(os.Getenv("AO_FLEET_LISTEN")),
+		ControlURL:   strings.TrimSpace(os.Getenv("AO_FLEET_CONTROL_URL")),
+		Token:        strings.TrimSpace(os.Getenv("AO_FLEET_TOKEN")),
+		Identity:     strings.TrimSpace(os.Getenv("AO_FLEET_IDENTITY")),
+		Availability: availability,
+		Capacity:     capacity,
+		Platforms:    platforms,
+		PowerBroker:  broker,
+	}
+	if cfg.Role == "worker" && (cfg.NodeID == "" || cfg.ControlURL == "" || cfg.Token == "") {
+		return FleetConfig{}, fmt.Errorf("AO_FLEET_ROLE=worker requires AO_FLEET_NODE_ID, AO_FLEET_CONTROL_URL, and AO_FLEET_TOKEN")
+	}
+	if cfg.Role == "control" && cfg.Listen == "" {
+		return FleetConfig{}, fmt.Errorf("AO_FLEET_ROLE=control requires AO_FLEET_LISTEN")
+	}
+	return cfg, nil
+}
+
 func resolveRunFilePath() (string, error) {
 	if p, ok := os.LookupEnv("AO_RUN_FILE"); ok && p != "" {
 		return absOverride("AO_RUN_FILE", p)
+	}
+	// An explicit data dir is one isolated daemon. Its handshake file lives
+	// beside that dir so a second daemon does not advertise the user's real
+	// ~/.ao/running.json.
+	if p, ok := os.LookupEnv("AO_DATA_DIR"); ok && strings.TrimSpace(p) != "" {
+		dataDir, err := absOverride("AO_DATA_DIR", p)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(dataDir, "running.json"), nil
 	}
 	stateDir, err := defaultStateDir()
 	if err != nil {

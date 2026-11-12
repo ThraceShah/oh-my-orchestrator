@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe"
 )
 
 // DefaultTickInterval is the artifact reconciliation cadence.

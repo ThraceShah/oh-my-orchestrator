@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/runfile"
 )
 
 // TestWaitForStoppedKeepsRunFileFromConcurrentStart guards against deleting a

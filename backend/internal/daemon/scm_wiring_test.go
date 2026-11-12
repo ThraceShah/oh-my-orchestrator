@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"testing"
 
-	scmmulti "github.com/aoagents/agent-orchestrator/backend/internal/adapters/scm/multi"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	scmobserve "github.com/aoagents/agent-orchestrator/backend/internal/observe/scm"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	scmmulti "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/scm/multi"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	scmobserve "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/observe/scm"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // TestSCMWiring_MultiProviderSatisfiesScopedIdentityResolver verifies that the

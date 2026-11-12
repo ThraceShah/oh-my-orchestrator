@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cursor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workeragent "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/cursor"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Reviewer is the Cursor code-review adapter.

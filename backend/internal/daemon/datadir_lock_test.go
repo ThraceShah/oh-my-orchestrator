@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/datadirlock"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/systeminstall"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/datadirlock"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/systeminstall"
 )
 
 // A daemon that finds its data dir owned logs that it is waiting, then gives

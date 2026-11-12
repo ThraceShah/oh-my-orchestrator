@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/authprobe"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencodev2"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
-	"github.com/aoagents/agent-orchestrator/backend/pkg/agentcreds"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/authprobe"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/opencodev2"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/pkg/agentcreds"
 )
 
 const (

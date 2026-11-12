@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	prsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/pr"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/config"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd"
+	prsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/pr"
 )
 
 type fakePRService struct {

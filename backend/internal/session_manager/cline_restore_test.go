@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cline"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/sessionguard"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/cline"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/sessionguard"
 )
 
 func TestClineRestoreProbesRecoveredConversation(t *testing.T) {

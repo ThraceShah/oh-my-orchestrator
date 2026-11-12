@@ -89,6 +89,14 @@ type ProjectConfig struct {
 	// the feature but check with the user or orchestrator before using it.
 	// Read at spawn, when the worker prompt is built.
 	WorkersRequestReview bool `json:"workersRequestReview,omitempty"`
+
+	// OrchestratorHomeNode is the fleet node that owns this project's long-lived
+	// orchestrator checkout. It is required together with OrchestratorCheckout
+	// when an orchestrator session is placed by the fleet. Neither has a default.
+	OrchestratorHomeNode string `json:"orchestratorHomeNode,omitempty"`
+	// OrchestratorCheckout is the absolute path of that checkout on the home
+	// node. The control plane does not create it and does not store a copy.
+	OrchestratorCheckout string `json:"orchestratorCheckout,omitempty"`
 }
 
 // ContainerReapConfig is the project-level opt-out for #2652's Docker
@@ -277,6 +285,11 @@ func (c ProjectConfig) Validate() error {
 	}
 	if err := c.TrackerIntake.Validate(); err != nil {
 		return err
+	}
+	home := strings.TrimSpace(c.OrchestratorHomeNode)
+	checkout := strings.TrimSpace(c.OrchestratorCheckout)
+	if (home == "") != (checkout == "") {
+		return fmt.Errorf("orchestratorHomeNode and orchestratorCheckout must be set together")
 	}
 	return nil
 }

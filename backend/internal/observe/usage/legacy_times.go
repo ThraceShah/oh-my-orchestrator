@@ -12,7 +12,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 const legacyTimeBatch = 512

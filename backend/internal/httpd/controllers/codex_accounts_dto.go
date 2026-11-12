@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	agentsvc "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/service/agent"
 )
 
 func newCodexAccountsResponse(input agentsvc.CodexAccounts) CodexAccountsResponse {

@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"runtime"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/conpty"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/tmux"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/runtime/conpty"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/runtime/tmux"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 // Runtime is the union interface that every selected runtime satisfies.

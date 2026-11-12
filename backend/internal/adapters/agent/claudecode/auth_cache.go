@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/pkg/agentcreds"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/pkg/agentcreds"
 )
 
 const (

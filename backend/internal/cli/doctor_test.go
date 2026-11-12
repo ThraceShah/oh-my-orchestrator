@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/registry"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/adapters/agent/registry"
 )
 
 func TestDoctorChecksGitVersion(t *testing.T) {

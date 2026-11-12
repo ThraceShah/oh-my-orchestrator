@@ -3,7 +3,7 @@ package crush
 import (
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 )
 
 func TestDeriveActivityStateReturnsFalse(t *testing.T) {

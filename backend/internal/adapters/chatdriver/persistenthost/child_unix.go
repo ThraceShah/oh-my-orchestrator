@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	aoprocess "github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 func configureProviderProcess(cmd *exec.Cmd) {

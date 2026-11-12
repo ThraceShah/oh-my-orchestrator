@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/reqid"
-	"github.com/aoagents/agent-orchestrator/backend/internal/telemetrymeta"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/reqid"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/telemetrymeta"
 )
 
 // Store is the read surface the payloads are derived from.
