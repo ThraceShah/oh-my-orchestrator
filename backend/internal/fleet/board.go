@@ -27,6 +27,7 @@ func (s *Service) BoardSessions(ctx context.Context) ([]domain.Session, error) {
 		if kind == "" {
 			kind = domain.KindWorker
 		}
+		handle := TerminalHandle(id)
 		out = append(out, domain.Session{
 			SessionRecord: domain.SessionRecord{
 				ID:          domain.SessionID(id),
@@ -35,12 +36,14 @@ func (s *Service) BoardSessions(ctx context.Context) ([]domain.Session, error) {
 				Harness:     domain.AgentHarness(p.Harness),
 				DisplayName: p.DisplayName,
 				Activity:    domain.Activity{State: domain.ActivityIdle},
+				Metadata:    domain.SessionMetadata{RuntimeHandleID: handle},
 			},
-			Status:          domain.StatusIdle,
-			KanbanColumn:    domain.KanbanBuilding,
-			StatusReadiness: string(p.State),
-			OwnerNodeID:     p.NodeID,
-			PlacementState:  string(p.State),
+			TerminalHandleID: handle,
+			Status:           domain.StatusIdle,
+			KanbanColumn:     domain.KanbanBuilding,
+			StatusReadiness:  string(p.State),
+			OwnerNodeID:      p.NodeID,
+			PlacementState:   string(p.State),
 		})
 	}
 	return out, nil

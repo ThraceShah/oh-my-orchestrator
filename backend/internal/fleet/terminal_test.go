@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 func TestTerminalRelayReachesTheOwningWorker(t *testing.T) {
@@ -85,6 +87,51 @@ func waitAddr(t *testing.T, ln *Listener) string {
 	}
 	t.Fatal("listener did not bind")
 	return ""
+}
+
+func TestMuxSourceReadsTheWorkerTerminal(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	ctx := context.Background()
+	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutPlacement(ctx, SessionPlacement{SessionID: "job", NodeID: "w", State: PlacementRunning, EngineID: "engine-1"}); err != nil {
+		t.Fatal(err)
+	}
+	hub.Attach("w", &terminalLoopback{hub: hub})
+	source := MuxSource{Hub: hub, Store: store}
+	stream, err := source.Attach(ctx, ports.RuntimeHandle{ID: TerminalHandle("engine-1")}, 24, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	buf := make([]byte, 8)
+	n, err := stream.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(buf[:n]) != "hi" {
+		t.Fatalf("read %q", buf[:n])
+	}
+	alive, err := source.IsAlive(ctx, ports.RuntimeHandle{ID: TerminalHandle("missing")})
+	if err != nil || alive {
+		t.Fatalf("missing alive=%v err=%v", alive, err)
+	}
+}
+
+type terminalLoopback struct {
+	hub *Hub
+}
+
+func (c *terminalLoopback) Send(context.Context, Command) error { return nil }
+func (c *terminalLoopback) Close() error                        { return nil }
+func (c *terminalLoopback) SendTerminal(_ context.Context, msg TerminalMessage) error {
+	if msg.Op == "open" {
+		c.hub.DeliverTerminal(TerminalMessage{StreamID: msg.StreamID, Op: "opened"})
+		c.hub.DeliverTerminal(TerminalMessage{StreamID: msg.StreamID, Op: "data", Data: base64.StdEncoding.EncodeToString([]byte("hi"))})
+	}
+	return nil
 }
 
 func waitConnected(t *testing.T, hub *Hub, id string) {

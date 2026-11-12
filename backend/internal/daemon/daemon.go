@@ -344,7 +344,11 @@ func Run(buildVersion string) error {
 	// through the CDC change_log -- only session-state events do.
 	runtimeAdapter := runtimeselect.New(log, cfg.RunFilePath)
 	managedPreview := previewserver.New(log, cfg.DataDir)
-	termMgr := terminal.NewManager(runtimeAdapter, cdcPipe.Broadcaster, log)
+	var termSource terminal.Source = runtimeAdapter
+	if fleetRuntime != nil {
+		termSource = fleet.MuxSource{Inner: runtimeAdapter, Hub: fleetRuntime.Hub, Store: fleetRuntime.Store}
+	}
+	termMgr := terminal.NewManager(termSource, cdcPipe.Broadcaster, log)
 	defer termMgr.Close()
 
 	// The agent messenger sends validated user input to the session's live

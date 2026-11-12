@@ -317,7 +317,7 @@ func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) {
+	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) || board[0].TerminalHandleID != TerminalHandle("engine-1") {
 		t.Fatalf("board = %+v", board)
 	}
 }

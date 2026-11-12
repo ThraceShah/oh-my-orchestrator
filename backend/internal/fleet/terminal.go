@@ -6,15 +6,25 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/coder/websocket"
 
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
+
+const terminalHandlePrefix = "fleet-term:"
+
+// TerminalHandle is the runtime handle a control-plane client opens on the
+// ordinary terminal mux. The mux source recognizes it and relays the bytes.
+func TerminalHandle(sessionID string) string {
+	return terminalHandlePrefix + sessionID
+}
 
 // TerminalStream is the worker-local byte stream for one session. Resize is
 // optional; streams that cannot resize ignore it.
@@ -236,6 +246,152 @@ func newStreamID() string {
 
 // OpenSessionTerminal attaches the terminal the worker's own engine already
 // started for the session. It does not launch an agent.
+// LocalTerminal is the control plane's own terminal source. Fleet handles
+// are relayed; every other handle stays on the local runtime.
+type LocalTerminal interface {
+	Attach(context.Context, ports.RuntimeHandle, uint16, uint16) (ports.Stream, error)
+	IsAlive(context.Context, ports.RuntimeHandle) (bool, error)
+}
+
+// MuxSource lets the existing /mux terminal protocol reach a placed session.
+// The desktop keeps opening a runtime handle. A fleet-term handle is not a
+// local process.
+type MuxSource struct {
+	Inner LocalTerminal
+	Hub   *Hub
+	Store *Store
+}
+
+func (m MuxSource) IsAlive(ctx context.Context, handle ports.RuntimeHandle) (bool, error) {
+	sessionID, ok := sessionFromTerminalHandle(handle.ID)
+	if !ok {
+		if m.Inner == nil {
+			return false, errors.New("no local terminal")
+		}
+		return m.Inner.IsAlive(ctx, handle)
+	}
+	if m.Store == nil {
+		return false, errors.New("fleet terminal is not available")
+	}
+	placement, found, err := m.Store.PlacementFor(ctx, sessionID)
+	if err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	if m.Hub == nil || !m.Hub.Connected(placement.NodeID) {
+		return false, fmt.Errorf("fleet node %s is not connected", placement.NodeID)
+	}
+	return placement.State == PlacementRunning || placement.State == PlacementStarting, nil
+}
+
+func (m MuxSource) Attach(ctx context.Context, handle ports.RuntimeHandle, rows, cols uint16) (ports.Stream, error) {
+	sessionID, ok := sessionFromTerminalHandle(handle.ID)
+	if !ok {
+		if m.Inner == nil {
+			return nil, errors.New("no local terminal")
+		}
+		return m.Inner.Attach(ctx, handle, rows, cols)
+	}
+	if m.Hub == nil || m.Store == nil {
+		return nil, errors.New("fleet terminal is not available")
+	}
+	placement, found, err := m.Store.PlacementFor(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if !found || placement.NodeID == "" {
+		return nil, fmt.Errorf("session %s is not placed on a fleet node", sessionID)
+	}
+	engine := placement.EngineID
+	if engine == "" {
+		engine = placement.SessionID
+	}
+	streamID := newStreamID()
+	replies, cancel := m.Hub.SubscribeTerminal(streamID)
+	if err := m.Hub.SendTerminal(ctx, placement.NodeID, TerminalMessage{StreamID: streamID, Op: "open", SessionID: engine, Cols: cols, Rows: rows}); err != nil {
+		cancel()
+		return nil, err
+	}
+	select {
+	case msg, ok := <-replies:
+		if !ok {
+			cancel()
+			return nil, errors.New("fleet terminal closed before it opened")
+		}
+		if msg.Op == "error" {
+			cancel()
+			return nil, errors.New(msg.Error)
+		}
+		if msg.Op != "opened" {
+			cancel()
+			return nil, fmt.Errorf("fleet terminal answered %s", msg.Op)
+		}
+	case <-ctx.Done():
+		cancel()
+		return nil, ctx.Err()
+	}
+	read, write := io.Pipe()
+	go copyTerminal(replies, write)
+	return &muxStream{reader: read, write: write, cancel: cancel, send: func(op, data string, c, r uint16) error {
+		return m.Hub.SendTerminal(context.Background(), placement.NodeID, TerminalMessage{StreamID: streamID, Op: op, Data: data, Cols: c, Rows: r})
+	}}, nil
+}
+
+type muxStream struct {
+	reader io.ReadCloser
+	write  *io.PipeWriter
+	cancel func()
+	send   func(op, data string, cols, rows uint16) error
+	once   sync.Once
+}
+
+func (s *muxStream) Read(p []byte) (int, error) { return s.reader.Read(p) }
+
+func (s *muxStream) Write(p []byte) (int, error) {
+	if err := s.send("data", base64.StdEncoding.EncodeToString(p), 0, 0); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (s *muxStream) Resize(rows, cols uint16) error { return s.send("resize", "", cols, rows) }
+
+func (s *muxStream) Close() error {
+	var err error
+	s.once.Do(func() {
+		err = s.send("close", "", 0, 0)
+		s.cancel()
+		_ = s.write.Close()
+		_ = s.reader.Close()
+	})
+	return err
+}
+
+func copyTerminal(replies <-chan TerminalMessage, out *io.PipeWriter) {
+	defer out.Close()
+	for msg := range replies {
+		switch msg.Op {
+		case "data":
+			raw, err := base64.StdEncoding.DecodeString(msg.Data)
+			if err != nil {
+				return
+			}
+			if _, err := out.Write(raw); err != nil {
+				return
+			}
+		case "closed", "error":
+			return
+		}
+	}
+}
+
+func sessionFromTerminalHandle(handle string) (string, bool) {
+	sessionID, ok := strings.CutPrefix(handle, terminalHandlePrefix)
+	return sessionID, ok && sessionID != ""
+}
+
 func OpenSessionTerminal(ctx context.Context, handleOf func(context.Context, string) (string, error), attach ports.Attacher, sessionID string, cols, rows uint16) (ports.Stream, error) {
 	if handleOf == nil || attach == nil {
 		return nil, fmt.Errorf("session %s has no terminal", sessionID)

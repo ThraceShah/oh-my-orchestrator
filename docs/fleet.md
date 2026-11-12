@@ -45,7 +45,7 @@ An on-demand node names its broker and the commands that broker should run. The 
 
 ## Terminals
 
-`/internal/fleet/terminal` on the control plane relays one loopback websocket to the worker that owns the session. The first frame is `{"type":"open","sessionId":"..."}`. Later frames are `data` (base64), `resize`, and `close`. The worker attaches the terminal its own engine already started. It does not launch another agent. Chat events are not relayed yet.
+A placed session's `terminalHandleId` starts with `fleet-term:`. The control plane's ordinary `/mux` terminal recognizes that handle and relays the bytes to the worker that owns the session. The desktop does not need a second terminal client. `/internal/fleet/terminal` remains a loopback websocket for the same relay. The worker attaches the terminal its own engine already started. It does not launch another agent. Chat events are not relayed yet.
 
 ## What is not included
 
