@@ -211,3 +211,36 @@ func (s *Service) DeliverMessage(ctx context.Context, sessionID, message string)
 	}
 	return true, s.hub.Dispatch(ctx, placement.NodeID, Command{Kind: CommandMessage, Payload: body})
 }
+
+// Chat asks the worker that owns a session to run one chat operation. A session
+// this fleet does not own is not handled, so the local chat service proceeds.
+// The returned JSON is the worker chat service's own response.
+func (s *Service) Chat(ctx context.Context, sessionID, op string, payload json.RawMessage) (json.RawMessage, bool, error) {
+	if s == nil || s.store == nil || s.hub == nil {
+		return nil, false, nil
+	}
+	placement, ok, err := s.store.PlacementFor(ctx, sessionID)
+	if err != nil || !ok {
+		return nil, false, err
+	}
+	engine := placement.EngineID
+	if engine == "" {
+		engine = placement.SessionID
+	}
+	body, err := json.Marshal(struct {
+		SessionID string          `json:"sessionId"`
+		Op        string          `json:"op"`
+		Payload   json.RawMessage `json:"payload,omitempty"`
+	}{SessionID: engine, Op: op, Payload: payload})
+	if err != nil {
+		return nil, true, err
+	}
+	ev, err := s.hub.Call(ctx, placement.NodeID, Command{Kind: CommandChat, Payload: body})
+	if err != nil {
+		return nil, true, err
+	}
+	if ev.Kind == EventFailed {
+		return nil, true, fmt.Errorf("fleet chat: %s", ev.Payload)
+	}
+	return ev.Payload, true, nil
+}

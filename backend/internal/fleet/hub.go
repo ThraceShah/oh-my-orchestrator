@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
 
 // Command is one instruction the control plane sends to a connected worker.
 type Command struct {
+	ID      string          `json:"id,omitempty"`
 	Kind    string          `json:"kind"`
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
@@ -20,6 +22,7 @@ const (
 	CommandMessage = "message"
 	CommandWake    = "wake"
 	CommandPower   = "power"
+	CommandChat    = "chat"
 )
 
 // Event is something a worker reports back. Activity and chat facts stay in
@@ -27,6 +30,7 @@ const (
 type Event struct {
 	NodeID    string          `json:"nodeId"`
 	SessionID string          `json:"sessionId,omitempty"`
+	CommandID string          `json:"commandId,omitempty"`
 	Kind      string          `json:"kind"`
 	Payload   json.RawMessage `json:"payload,omitempty"`
 	At        time.Time       `json:"at"`
@@ -49,10 +53,11 @@ type Conn interface {
 
 // Hub tracks which enrolled nodes currently have a dial-in connection.
 type Hub struct {
-	mu     sync.Mutex
-	nodes  map[string]*link
-	events chan Event
-	terms  map[string]chan TerminalMessage
+	mu      sync.Mutex
+	nodes   map[string]*link
+	events  chan Event
+	terms   map[string]chan TerminalMessage
+	replies map[string]chan Event
 }
 
 type link struct {
@@ -61,7 +66,7 @@ type link struct {
 }
 
 func NewHub() *Hub {
-	return &Hub{nodes: map[string]*link{}, events: make(chan Event, 64), terms: map[string]chan TerminalMessage{}}
+	return &Hub{nodes: map[string]*link{}, events: make(chan Event, 64), terms: map[string]chan TerminalMessage{}, replies: map[string]chan Event{}}
 }
 
 // Events is the control plane's inbound stream. It is never closed.
@@ -107,6 +112,32 @@ func (h *Hub) Dispatch(ctx context.Context, nodeID string, cmd Command) error {
 		return errors.New("fleet node is not connected")
 	}
 	return cur.conn.Send(ctx, cmd)
+}
+
+// Call sends one command and waits for the worker event that answers it.
+// The command id is filled in when the caller leaves it empty.
+func (h *Hub) Call(ctx context.Context, nodeID string, cmd Command) (Event, error) {
+	if strings.TrimSpace(cmd.ID) == "" {
+		cmd.ID = newStreamID()
+	}
+	ch := make(chan Event, 1)
+	h.mu.Lock()
+	h.replies[cmd.ID] = ch
+	h.mu.Unlock()
+	defer func() {
+		h.mu.Lock()
+		delete(h.replies, cmd.ID)
+		h.mu.Unlock()
+	}()
+	if err := h.Dispatch(ctx, nodeID, cmd); err != nil {
+		return Event{}, err
+	}
+	select {
+	case ev := <-ch:
+		return ev, nil
+	case <-ctx.Done():
+		return Event{}, ctx.Err()
+	}
 }
 
 // SubscribeTerminal returns the worker's frames for one stream. Cancel
@@ -168,6 +199,18 @@ func (h *Hub) SendTerminal(ctx context.Context, nodeID string, msg TerminalMessa
 func (h *Hub) Publish(ev Event) {
 	if ev.At.IsZero() {
 		ev.At = time.Now().UTC()
+	}
+	if ev.CommandID != "" {
+		h.mu.Lock()
+		ch := h.replies[ev.CommandID]
+		h.mu.Unlock()
+		if ch != nil {
+			select {
+			case ch <- ev:
+			default:
+			}
+			return
+		}
 	}
 	select {
 	case h.events <- ev:

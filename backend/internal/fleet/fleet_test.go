@@ -322,6 +322,50 @@ func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
 	}
 }
 
+func TestChatSnapshotComesFromTheOwningWorker(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	svc := NewService(store, hub)
+	ctx := context.Background()
+	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutPlacement(ctx, SessionPlacement{SessionID: "job", NodeID: "w", State: PlacementRunning, EngineID: "engine-1"}); err != nil {
+		t.Fatal(err)
+	}
+	hub.Attach("w", replyConn{hub: hub})
+	raw, handled, err := svc.Chat(ctx, "engine-1", "snapshot", nil)
+	if err != nil || !handled || !bytes.Contains(raw, []byte("engine-1")) {
+		t.Fatalf("raw=%s handled=%v err=%v", raw, handled, err)
+	}
+	_, handled, err = svc.Chat(ctx, "missing", "snapshot", nil)
+	if err != nil || handled {
+		t.Fatalf("missing handled=%v err=%v", handled, err)
+	}
+}
+
+type replyConn struct{ hub *Hub }
+
+func (c replyConn) Send(_ context.Context, cmd Command) error {
+	c.hub.Publish(Event{CommandID: cmd.ID, Kind: "chat", Payload: []byte(`{"sessionId":"engine-1"}`)})
+	return nil
+}
+func (c replyConn) Close() error { return nil }
+
+func TestWorkerChatAnswersASnapshot(t *testing.T) {
+	handler := WorkerHandlerWithChat(nil, nil, nil, func(_ context.Context, op, sessionID string, payload json.RawMessage) (json.RawMessage, error) {
+		if op != "snapshot" || sessionID != "engine-1" || len(payload) != 0 {
+			return nil, errors.New("unexpected chat request")
+		}
+		return []byte(`{"turns":1}`), nil
+	}, nil)
+	body, _ := json.Marshal(map[string]string{"sessionId": "engine-1", "op": "snapshot"})
+	ev := handler(context.Background(), Command{Kind: CommandChat, Payload: body})
+	if ev.Kind != "chat" || !bytes.Contains(ev.Payload, []byte("turns")) {
+		t.Fatalf("event = %+v", ev)
+	}
+}
+
 func TestDeliverMessageUsesTheEngineID(t *testing.T) {
 	store := openDB(t)
 	hub := NewHub()

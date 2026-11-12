@@ -88,6 +88,7 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 			case frame.Type == FrameCommand && frame.Command != nil && d.Handler != nil:
 				ev := d.Handler(ctx, *frame.Command)
 				ev.NodeID = d.NodeID
+				ev.CommandID = frame.Command.ID
 				if err := writer.write(ctx, Frame{Type: FrameEvent, Event: &ev}); err != nil {
 					errCh <- err
 					return

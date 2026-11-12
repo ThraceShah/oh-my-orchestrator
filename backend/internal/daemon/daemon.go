@@ -6,6 +6,7 @@ package daemon
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -802,7 +803,7 @@ func Run(buildVersion string) error {
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
 			Caps:       func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
-			Handler:    fleet.WorkerHandlerWithMessages(sessionSvc, sessionMessenger{sessionSvc}, power, log),
+			Handler:    fleet.WorkerHandlerWithChat(sessionSvc, sessionMessenger{sessionSvc}, power, workerChat(chatSvc), log),
 			OnTerminal: bridge.Handle,
 		}
 		go func() {
@@ -1262,7 +1263,7 @@ func Run(buildVersion string) error {
 		Cues:               cuesvc.New(cuesvc.Deps{Store: store, Sessions: sessionSvc, Terminals: shellTermSvc}),
 		AgentAuth:          agentAuthSvc,
 		GitHub:             newGitHubStatusService(githubpat.New(cfg.DataDir), prReader),
-		Conversations:      chatSvc,
+		Conversations:      fleetConversations(chatSvc, fleetRuntime),
 		ConversationSearch: store,
 		Settings:           settingsSvc,
 		CDC:                store,
@@ -1657,6 +1658,83 @@ func (m sessionMessenger) Send(ctx context.Context, sessionID, message string) e
 		return errors.New("no session engine")
 	}
 	return m.sessions.Send(ctx, domain.SessionID(sessionID), message, nil)
+}
+
+type fleetChat struct {
+	controllers.ConversationService
+	fleet *fleet.Service
+}
+
+func fleetConversations(inner controllers.ConversationService, rt *fleet.Runtime) controllers.ConversationService {
+	if inner == nil || rt == nil {
+		return inner
+	}
+	return fleetChat{ConversationService: inner, fleet: rt.Service}
+}
+
+func (f fleetChat) Snapshot(ctx context.Context, id domain.SessionID) (chatsvc.Snapshot, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "snapshot", nil)
+	if !handled {
+		return f.ConversationService.Snapshot(ctx, id)
+	}
+	if err != nil {
+		return chatsvc.Snapshot{}, err
+	}
+	var snap chatsvc.Snapshot
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		return chatsvc.Snapshot{}, err
+	}
+	return snap, nil
+}
+
+func (f fleetChat) Send(ctx context.Context, id domain.SessionID, msg ports.ChatUserMessage) (domain.ConversationTurn, error) {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "send", payload)
+	if !handled {
+		return f.ConversationService.Send(ctx, id, msg)
+	}
+	if err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	var turn domain.ConversationTurn
+	if err := json.Unmarshal(raw, &turn); err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	return turn, nil
+}
+
+func workerChat(svc *chatsvc.Service) fleet.ChatFunc {
+	if svc == nil {
+		return nil
+	}
+	return func(ctx context.Context, op, sessionID string, payload json.RawMessage) (json.RawMessage, error) {
+		id := domain.SessionID(sessionID)
+		switch op {
+		case "snapshot":
+			snap, err := svc.Snapshot(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(snap)
+		case "send":
+			var msg ports.ChatUserMessage
+			if len(payload) > 0 {
+				if err := json.Unmarshal(payload, &msg); err != nil {
+					return nil, err
+				}
+			}
+			turn, err := svc.Send(ctx, id, msg)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(turn)
+		default:
+			return nil, fmt.Errorf("unsupported chat operation %s", op)
+		}
+	}
 }
 
 func fleetTerminal(rt *fleet.Runtime) http.Handler {

@@ -34,15 +34,31 @@ func WorkerHandler(exec Executor, power PowerFunc, log *slog.Logger) func(contex
 	return WorkerHandlerWithMessages(exec, nil, power, log)
 }
 
+// ChatFunc answers one chat operation for a session this machine runs. The
+// payload and result are the chat service's own JSON.
+type ChatFunc func(context.Context, string, string, json.RawMessage) (json.RawMessage, error)
+
 // WorkerHandlerWithMessages is WorkerHandler plus delivery of a later message
 // into a session this machine already started.
 func WorkerHandlerWithMessages(exec Executor, messages Messenger, power PowerFunc, log *slog.Logger) func(context.Context, Command) Event {
+	return workerHandler(exec, messages, power, nil, log)
+}
+
+// WorkerHandlerWithChat is the worker command handler including chat snapshot
+// and send operations that stay on this machine's chat service.
+func WorkerHandlerWithChat(exec Executor, messages Messenger, power PowerFunc, chat ChatFunc, log *slog.Logger) func(context.Context, Command) Event {
+	return workerHandler(exec, messages, power, chat, log)
+}
+
+func workerHandler(exec Executor, messages Messenger, power PowerFunc, chat ChatFunc, log *slog.Logger) func(context.Context, Command) Event {
 	return func(ctx context.Context, cmd Command) Event {
 		switch cmd.Kind {
 		case CommandSpawn:
 			return handleSpawn(ctx, exec, cmd)
 		case CommandMessage:
 			return handleMessage(ctx, messages, cmd)
+		case CommandChat:
+			return handleChat(ctx, chat, cmd)
 		case CommandPower:
 			return handlePower(ctx, power, cmd)
 		default:
@@ -107,6 +123,25 @@ func handleMessage(ctx context.Context, messages Messenger, cmd Command) Event {
 		return Event{SessionID: body.SessionID, Kind: EventFailed, Payload: jsonRaw(err.Error())}
 	}
 	return Event{SessionID: body.SessionID, Kind: "accepted"}
+}
+
+func handleChat(ctx context.Context, chat ChatFunc, cmd Command) Event {
+	var req struct {
+		SessionID string          `json:"sessionId"`
+		Op        string          `json:"op"`
+		Payload   json.RawMessage `json:"payload,omitempty"`
+	}
+	if err := json.Unmarshal(cmd.Payload, &req); err != nil {
+		return Event{Kind: EventFailed, Payload: jsonRaw(err.Error())}
+	}
+	if chat == nil {
+		return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw("this worker has no chat service")}
+	}
+	raw, err := chat(ctx, req.Op, req.SessionID, req.Payload)
+	if err != nil {
+		return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw(err.Error())}
+	}
+	return Event{SessionID: req.SessionID, Kind: "chat", Payload: raw}
 }
 
 func handlePower(ctx context.Context, power PowerFunc, cmd Command) Event {
