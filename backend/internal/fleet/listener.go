@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coder/websocket"
@@ -27,6 +28,17 @@ type Listener struct {
 	Hub      *Hub
 	Identity IdentityFunc
 	Log      *slog.Logger
+
+	mu    sync.RWMutex
+	bound string
+}
+
+// Address is the address actually bound. It is empty until Run has listened,
+// which is how a test discovers an ephemeral port.
+func (l *Listener) Address() string {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.bound
 }
 
 func (l *Listener) Run(ctx context.Context) error {
@@ -38,6 +50,9 @@ func (l *Listener) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	l.mu.Lock()
+	l.bound = ln.Addr().String()
+	l.mu.Unlock()
 	srv := &http.Server{Handler: http.HandlerFunc(l.serve)}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()

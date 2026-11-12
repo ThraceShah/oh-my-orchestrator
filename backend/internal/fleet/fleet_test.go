@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -179,6 +180,117 @@ func (c *recordingConn) Send(_ context.Context, cmd Command) error {
 }
 
 func (c *recordingConn) Close() error { return nil }
+
+func TestWakeDispatchesTheConfiguredCommand(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	svc := NewService(store, hub)
+	ctx := context.Background()
+	marker := filepath.Join(t.TempDir(), "awake")
+	if _, err := store.Enroll(ctx, Node{
+		ID: "cold", Name: "cold", Role: RoleWorker, Availability: OnDemand, Capacity: 1,
+		PowerBrokerNode: "broker", WakeCommand: "touch " + marker, ShutdownCommand: "true",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	hub.Attach("broker", &recordingConn{})
+	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "job", Kind: "worker", NodeID: "cold"}, SpawnRequest{SessionID: "job", Kind: "worker"}); err != nil {
+		t.Fatal(err)
+	}
+	conn := hubNode(t, hub, "broker")
+	got, err := DecodePower(conn.cmds[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Action != "wake" || got.Command != "touch "+marker || got.NodeID != "cold" {
+		t.Fatalf("power = %+v", got)
+	}
+	if err := store.PutPlacement(ctx, SessionPlacement{SessionID: "job", NodeID: "cold", State: PlacementRunning}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RequestPower(ctx, "cold", "shutdown"); err == nil {
+		t.Fatal("shutdown was accepted while a session is running")
+	}
+}
+
+func TestExecPowerRunsTheConfiguredCommand(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "awake")
+	if err := ExecPower(context.Background(), PowerRequest{NodeID: "cold", Action: "wake", Command: "touch " + marker}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal(err)
+	}
+	if err := ExecPower(context.Background(), PowerRequest{NodeID: "cold", Action: "wake"}); err == nil {
+		t.Fatal("empty command was run")
+	}
+}
+
+func TestBrokerDialInRunsTheWakeCommand(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	marker := filepath.Join(t.TempDir(), "awake")
+	enrolled, err := store.Enroll(ctx, Node{ID: "broker", Name: "broker", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1, PowerBroker: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Enroll(ctx, Node{
+		ID: "cold", Name: "cold", Role: RoleWorker, Availability: OnDemand, Capacity: 1,
+		PowerBrokerNode: "broker", WakeCommand: "touch " + marker,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ln := &Listener{Addr: "127.0.0.1:0", Store: store, Hub: hub}
+	go func() { _ = ln.Run(ctx) }()
+	var addr string
+	for i := 0; i < 50 && addr == ""; i++ {
+		addr = ln.Address()
+		time.Sleep(10 * time.Millisecond)
+	}
+	if addr == "" {
+		t.Fatal("listener did not bind")
+	}
+	go func() {
+		_ = (&Dialer{
+			URL: "ws://" + addr + "/fleet/v1/connect", NodeID: "broker", Token: enrolled.Token,
+			Handler: WorkerHandler(nil, ExecPower, nil),
+		}).Run(ctx)
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for !hub.Connected("broker") {
+		if time.Now().After(deadline) {
+			t.Fatal("broker did not dial in")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	svc := NewService(store, hub)
+	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "job", Kind: "worker", NodeID: "cold"}, SpawnRequest{SessionID: "job"}); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("wake command did not run")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func hubNode(t *testing.T, hub *Hub, id string) *recordingConn {
+	t.Helper()
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	conn, ok := hub.nodes[id].conn.(*recordingConn)
+	if !ok {
+		t.Fatalf("node %s is not the recording connection", id)
+	}
+	return conn
+}
 
 func TestLocalCapabilitiesKeepsCredentialsOffTheWire(t *testing.T) {
 	caps, err := LocalCapabilities(context.Background(), func(context.Context) ([]string, []string, error) {

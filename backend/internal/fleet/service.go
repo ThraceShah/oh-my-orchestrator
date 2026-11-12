@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -127,11 +128,61 @@ func (s *Service) dispatchSpawn(ctx context.Context, nodeID string, spawn SpawnR
 }
 
 func (s *Service) wake(ctx context.Context, decision Decision) error {
-	if s.hub == nil {
-		return fmt.Errorf("power broker %s is not connected", decision.BrokerID)
+	return s.dispatchPower(ctx, decision.NodeID, decision.BrokerID, "wake")
+}
+
+// RequestPower asks a node's broker to run the configured wake or shutdown
+// command. Shutdown is refused while the node still owns a session, so a
+// directory is not powered off underneath a running agent.
+func (s *Service) RequestPower(ctx context.Context, nodeID, action string) error {
+	if action != "wake" && action != "shutdown" {
+		return fmt.Errorf("unsupported power action %q", action)
 	}
-	body, _ := json.Marshal(map[string]string{"nodeId": decision.NodeID, "action": "wake"})
-	return s.hub.Dispatch(ctx, decision.BrokerID, Command{Kind: CommandPower, Payload: body})
+	node, ok, err := s.store.Node(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("%w: node %s is not enrolled", ErrNodeUnavailable, nodeID)
+	}
+	if node.Availability != OnDemand {
+		return fmt.Errorf("%w: only an on-demand node has a power broker", ErrNodeUnavailable)
+	}
+	if action == "shutdown" {
+		active, err := s.store.CountActive(ctx, nodeID)
+		if err != nil {
+			return err
+		}
+		if active > 0 {
+			return fmt.Errorf("%w: node %s still has %d session(s)", ErrNodeUnavailable, nodeID, active)
+		}
+	}
+	return s.dispatchPower(ctx, node.ID, node.PowerBrokerNode, action)
+}
+
+func (s *Service) dispatchPower(ctx context.Context, nodeID, brokerID, action string) error {
+	if s.hub == nil || strings.TrimSpace(brokerID) == "" {
+		return fmt.Errorf("power broker %s is not connected", brokerID)
+	}
+	node, ok, err := s.store.Node(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("%w: node %s is not enrolled", ErrNodeUnavailable, nodeID)
+	}
+	command := node.WakeCommand
+	if action == "shutdown" {
+		command = node.ShutdownCommand
+	}
+	if strings.TrimSpace(command) == "" {
+		return fmt.Errorf("no %s command is configured for %s", action, nodeID)
+	}
+	body, err := json.Marshal(PowerRequest{NodeID: nodeID, Action: action, Command: command})
+	if err != nil {
+		return err
+	}
+	return s.hub.Dispatch(ctx, brokerID, Command{Kind: CommandPower, Payload: body})
 }
 
 func (s *Service) fail(ctx context.Context, sessionID, nodeID string, cause error) error {

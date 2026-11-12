@@ -122,8 +122,9 @@ func nextDelay(current time.Duration) time.Duration {
 // live in node configuration and are executed by the deployment's broker
 // process; this package does not know how any machine powers on.
 type PowerRequest struct {
-	NodeID string `json:"nodeId"`
-	Action string `json:"action"`
+	NodeID  string `json:"nodeId"`
+	Action  string `json:"action"`
+	Command string `json:"command"`
 }
 
 // DecodePower reads a power command payload.

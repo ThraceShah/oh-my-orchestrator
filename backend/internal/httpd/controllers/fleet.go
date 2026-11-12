@@ -16,6 +16,7 @@ import (
 type FleetService interface {
 	Enroll(context.Context, fleet.Node) (fleet.Enrollment, error)
 	Nodes(context.Context) ([]fleet.Node, error)
+	RequestPower(context.Context, string, string) error
 }
 
 // FleetController serves node enrollment and listing. A nil service means this
@@ -30,6 +31,7 @@ func (c *FleetController) Register(r chi.Router) {
 	// stay beside the other internal routes and out of the OpenAPI app surface.
 	r.Get("/internal/fleet/nodes", c.list)
 	r.Post("/internal/fleet/nodes", c.enroll)
+	r.Post("/internal/fleet/nodes/{id}/power", c.power)
 }
 
 type fleetEnrollRequest struct {
@@ -93,4 +95,25 @@ func (c *FleetController) enroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	envelope.WriteJSON(w, http.StatusCreated, fleetEnrollResponse{Node: enrolled.Node, Token: enrolled.Token})
+}
+
+type fleetPowerRequest struct {
+	Action string `json:"action"`
+}
+
+func (c *FleetController) power(w http.ResponseWriter, r *http.Request) {
+	if c == nil || c.Svc == nil {
+		envelope.WriteAPIError(w, r, http.StatusNotFound, "not_found", "FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane", nil)
+		return
+	}
+	var in fleetPowerRequest
+	if err := decodeJSON(r, &in); err != nil {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "bad_request", "INVALID_JSON", "Invalid JSON body", nil)
+		return
+	}
+	if err := c.Svc.RequestPower(r.Context(), chi.URLParam(r, "id"), strings.TrimSpace(in.Action)); err != nil {
+		envelope.WriteAPIError(w, r, http.StatusConflict, "conflict", "FLEET_POWER_REJECTED", err.Error(), nil)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

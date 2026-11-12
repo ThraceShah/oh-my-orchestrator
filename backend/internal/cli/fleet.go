@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"text/tabwriter"
 
@@ -19,7 +20,7 @@ func newFleetCommand(ctx *commandContext) *cobra.Command {
 			"The token prints once and becomes that worker's AO_FLEET_TOKEN.",
 		Args: noArgs,
 	}
-	cmd.AddCommand(newFleetEnrollCommand(ctx), newFleetNodesCommand(ctx))
+	cmd.AddCommand(newFleetEnrollCommand(ctx), newFleetNodesCommand(ctx), newFleetPowerCommand(ctx))
 	return cmd
 }
 
@@ -81,6 +82,21 @@ func newFleetNodesCommand(ctx *commandContext) *cobra.Command {
 
 // fleetEnrollRequest mirrors the daemon's enrollment body. The CLI keeps its
 // own copy so it does not import the HTTP controller package.
+func newFleetPowerCommand(ctx *commandContext) *cobra.Command {
+	return &cobra.Command{
+		Use:   "power <id> <wake|shutdown>",
+		Short: "Ask a node's broker to run its configured power command",
+		Args:  usageArgs(cobra.ExactArgs(2)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			action := strings.TrimSpace(args[1])
+			if action != "wake" && action != "shutdown" {
+				return usageError{fmt.Errorf("power action must be wake or shutdown")}
+			}
+			return ctx.postLoopbackJSON(cmd.Context(), "/internal/fleet/nodes/"+url.PathEscape(args[0])+"/power", map[string]string{"action": action})
+		},
+	}
+}
+
 type fleetEnrollRequest struct {
 	ID              string   `json:"id"`
 	Name            string   `json:"name"`

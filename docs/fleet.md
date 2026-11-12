@@ -37,6 +37,10 @@ ao daemon
 - A session's directory stays on the node that created it. A lost heartbeat marks the placement `offline`. It does not terminate the session and does not move the directory.
 - An orchestrator session ignores those choices. Its project config must set both `orchestratorHomeNode` and `orchestratorCheckout`. The checkout is a long-lived directory on that one node.
 
+## Power
+
+An on-demand node names its broker and the commands that broker should run. The control plane sends that configured command when a session names the node, or when an operator runs `ao fleet power <id> wake`. `ao fleet power <id> shutdown` is refused while the node still owns a session. The broker executes the command on its own machine; the product has no built-in power protocol. A worker only accepts power commands when `AO_FLEET_POWER_BROKER=on`.
+
 ## What is not included
 
-Terminal bytes and chat events are not yet proxied through the control plane. A pinned spawn is delivered to the worker, the worker starts it in its own engine, and the control plane records that engine's session id on the placement. Opening the terminal from the control plane is the next slice. Power-on still needs the broker process to be given the deployment's command.
+Terminal bytes and chat events are not yet proxied through the control plane. A pinned spawn is delivered to the worker, the worker starts it in its own engine, and the control plane records that engine's session id on the placement. Opening the terminal from the control plane is the next slice.

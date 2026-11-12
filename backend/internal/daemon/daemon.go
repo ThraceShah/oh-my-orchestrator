@@ -780,10 +780,14 @@ func Run(buildVersion string) error {
 		sessionSvc.SetFleetPlacement(placement.Place)
 	}
 	if cfg.Fleet.Role == "worker" {
+		var power fleet.PowerFunc
+		if cfg.Fleet.PowerBroker {
+			power = fleet.ExecPower
+		}
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
 			Caps:    func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
-			Handler: fleet.WorkerHandler(sessionSvc, nil, log),
+			Handler: fleet.WorkerHandler(sessionSvc, power, log),
 		}
 		go func() {
 			defer sentryobs.RecoverBackground()
@@ -1626,6 +1630,7 @@ func workerCapabilities(ctx context.Context, agents interface {
 func fleetAPI(rt *fleet.Runtime) interface {
 	Enroll(context.Context, fleet.Node) (fleet.Enrollment, error)
 	Nodes(context.Context) ([]fleet.Node, error)
+	RequestPower(context.Context, string, string) error
 } {
 	if rt == nil {
 		return nil
