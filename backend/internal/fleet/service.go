@@ -189,3 +189,25 @@ func (s *Service) dispatchPower(ctx context.Context, nodeID, brokerID, action st
 func (s *Service) fail(ctx context.Context, sessionID, nodeID string, cause error) error {
 	return s.NoteFailed(ctx, sessionID, nodeID, cause.Error())
 }
+
+// DeliverMessage sends text to the worker that owns a placed session. A session
+// this fleet does not own is reported as not handled so the local engine can
+// take it. The worker addresses the session by its own engine id.
+func (s *Service) DeliverMessage(ctx context.Context, sessionID, message string) (bool, error) {
+	if s == nil || s.store == nil {
+		return false, nil
+	}
+	placement, ok, err := s.store.PlacementFor(ctx, sessionID)
+	if err != nil || !ok {
+		return false, err
+	}
+	engine := placement.EngineID
+	if engine == "" {
+		engine = placement.SessionID
+	}
+	body, err := json.Marshal(map[string]string{"sessionId": engine, "message": message})
+	if err != nil {
+		return true, err
+	}
+	return true, s.hub.Dispatch(ctx, placement.NodeID, Command{Kind: CommandMessage, Payload: body})
+}

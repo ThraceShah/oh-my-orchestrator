@@ -263,6 +263,7 @@ type Service struct {
 	// set. Nil means this daemon has no fleet, so those fields are rejected.
 	fleetPlace             func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)
 	fleetBoard             func(context.Context) ([]domain.Session, error)
+	fleetSend              func(context.Context, string, string) (bool, error)
 	titleRefinementSlots   chan struct{}
 	titleRefinementMu      sync.Mutex
 	titleRefinementCancels map[domain.SessionID]context.CancelFunc
@@ -395,6 +396,12 @@ func (s *Service) SetFleetBoard(board func(context.Context) ([]domain.Session, e
 	s.fleetBoard = board
 }
 
+// SetFleetSend forwards a message to the worker that owns a placed session.
+// The callback reports whether the session was one of its placements.
+func (s *Service) SetFleetSend(send func(context.Context, string, string) (bool, error)) {
+	s.fleetSend = send
+}
+
 // SetUsageArchiveFlush sends pending session summaries after a user archive.
 func (s *Service) SetUsageArchiveFlush(flush func(context.Context)) {
 	s.usageArchiveFlush = flush
@@ -418,6 +425,20 @@ func (s *Service) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 	if strings.TrimSpace(cfg.NodeID) != "" || strings.TrimSpace(cfg.Platform) != "" {
 		if s.fleetPlace == nil {
 			return domain.Session{}, 0, 0, apierr.Invalid("FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane, so nodeId and platform are not available", nil)
+		}
+	}
+	// A control plane does not run agents. Every spawn, including one that
+	// names no node, is placed on a worker. A daemon without a fleet keeps
+	// creating the session locally.
+	if s.fleetPlace != nil {
+		if cfg.Kind == domain.KindOrchestrator {
+			existing, err := s.activeOrchestrators(ctx, cfg.ProjectID)
+			if err != nil {
+				return domain.Session{}, 0, 0, err
+			}
+			if len(existing) > 0 {
+				return newestSession(existing), 0, 0, nil
+			}
 		}
 		return s.fleetPlace(ctx, cfg)
 	}
@@ -1432,6 +1453,18 @@ func (s *Service) RollbackSpawn(ctx context.Context, id domain.SessionID) (Rollb
 // optional inline image (e.g. a browser-annotation snapshot) written into the
 // session worktree and referenced from the delivered message.
 func (s *Service) Send(ctx context.Context, id domain.SessionID, message string, attachment *ports.SpawnAttachment) error {
+	if s.fleetSend != nil {
+		handled, err := s.fleetSend(ctx, string(id), message)
+		if handled {
+			if attachment != nil {
+				return apierr.Invalid("FLEET_ATTACHMENT_UNSUPPORTED", "Attachments cannot be sent to a session on another machine yet", nil)
+			}
+			return err
+		}
+		if err != nil {
+			return err
+		}
+	}
 	return toAPIError(s.manager.Send(ctx, id, message, attachment))
 }
 
@@ -1698,16 +1731,15 @@ func (s *Service) ListPage(ctx context.Context, filter ListFilter) (ListPage, er
 		if err != nil {
 			return ListPage{}, err
 		}
-		if filter.ProjectID != "" {
-			kept := extra[:0]
-			for _, sess := range extra {
-				if sess.ProjectID == filter.ProjectID {
-					kept = append(kept, sess)
-				}
+		for _, sess := range extra {
+			if filter.ProjectID != "" && sess.ProjectID != filter.ProjectID {
+				continue
 			}
-			extra = kept
+			if !matchesSessionFilter(sess.SessionRecord, filter) {
+				continue
+			}
+			page.Sessions = append(page.Sessions, sess)
 		}
-		page.Sessions = append(page.Sessions, extra...)
 	}
 	return page, nil
 }

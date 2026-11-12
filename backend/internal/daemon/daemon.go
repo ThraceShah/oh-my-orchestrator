@@ -779,6 +779,7 @@ func Run(buildVersion string) error {
 		placement := &fleet.PlacementService{Fleet: fleetRuntime.Service, Projects: fleet.ProjectConfigHomes{Projects: projectSvc}}
 		sessionSvc.SetFleetPlacement(placement.Place)
 		sessionSvc.SetFleetBoard(fleetRuntime.Service.BoardSessions)
+		sessionSvc.SetFleetSend(fleetRuntime.Service.DeliverMessage)
 	}
 	if cfg.Fleet.Role == "worker" {
 		var power fleet.PowerFunc
@@ -797,7 +798,7 @@ func Run(buildVersion string) error {
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
 			Caps:       func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
-			Handler:    fleet.WorkerHandler(sessionSvc, power, log),
+			Handler:    fleet.WorkerHandlerWithMessages(sessionSvc, sessionMessenger{sessionSvc}, power, log),
 			OnTerminal: bridge.Handle,
 		}
 		go func() {
@@ -1637,6 +1638,21 @@ func workerCapabilities(ctx context.Context, agents interface {
 		return nil
 	}
 	return caps
+}
+
+// sessionMessenger adapts the session service to the fleet worker's message
+// delivery. The session id is the one this machine's engine created.
+type sessionMessenger struct {
+	sessions interface {
+		Send(context.Context, domain.SessionID, string, *ports.SpawnAttachment) error
+	}
+}
+
+func (m sessionMessenger) Send(ctx context.Context, sessionID, message string) error {
+	if m.sessions == nil {
+		return errors.New("no session engine")
+	}
+	return m.sessions.Send(ctx, domain.SessionID(sessionID), message, nil)
 }
 
 func fleetTerminal(rt *fleet.Runtime) http.Handler {

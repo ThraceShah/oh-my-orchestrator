@@ -16,6 +16,11 @@ type Executor interface {
 	Spawn(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)
 }
 
+// Messenger delivers a follow-up message to a session this machine already runs.
+type Messenger interface {
+	Send(context.Context, string, string) error
+}
+
 // PowerFunc runs one configured power action. The command text is deployment
 // configuration; this function only receives the request.
 type PowerFunc func(context.Context, PowerRequest) error
@@ -24,10 +29,18 @@ type PowerFunc func(context.Context, PowerRequest) error
 // returns an event the dialer sends back. A handler failure becomes an event
 // with kind "failed" and does not change which node owns the session.
 func WorkerHandler(exec Executor, power PowerFunc, log *slog.Logger) func(context.Context, Command) Event {
+	return WorkerHandlerWithMessages(exec, nil, power, log)
+}
+
+// WorkerHandlerWithMessages is WorkerHandler plus delivery of a later message
+// into a session this machine already started.
+func WorkerHandlerWithMessages(exec Executor, messages Messenger, power PowerFunc, log *slog.Logger) func(context.Context, Command) Event {
 	return func(ctx context.Context, cmd Command) Event {
 		switch cmd.Kind {
 		case CommandSpawn:
 			return handleSpawn(ctx, exec, cmd)
+		case CommandMessage:
+			return handleMessage(ctx, messages, cmd)
 		case CommandPower:
 			return handlePower(ctx, power, cmd)
 		default:
@@ -65,6 +78,23 @@ func handleSpawn(ctx context.Context, exec Executor, cmd Command) Event {
 	// SessionID stays the control plane's placement key. The engine's id travels
 	// in the payload because the worker's local session id is not the placement key.
 	return Event{SessionID: req.SessionID, Kind: EventStarted, Payload: body}
+}
+
+func handleMessage(ctx context.Context, messages Messenger, cmd Command) Event {
+	var body struct {
+		SessionID string `json:"sessionId"`
+		Message   string `json:"message"`
+	}
+	if err := json.Unmarshal(cmd.Payload, &body); err != nil {
+		return Event{Kind: EventFailed, Payload: jsonRaw(err.Error())}
+	}
+	if messages == nil {
+		return Event{SessionID: body.SessionID, Kind: EventFailed, Payload: jsonRaw("this worker cannot deliver messages")}
+	}
+	if err := messages.Send(ctx, body.SessionID, body.Message); err != nil {
+		return Event{SessionID: body.SessionID, Kind: EventFailed, Payload: jsonRaw(err.Error())}
+	}
+	return Event{SessionID: body.SessionID, Kind: "accepted"}
 }
 
 func handlePower(ctx context.Context, power PowerFunc, cmd Command) Event {

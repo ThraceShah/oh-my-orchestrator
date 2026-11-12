@@ -31,7 +31,8 @@ ao daemon
 
 ## Placement
 
-- Omitting `--node` on `ao spawn` keeps the session on the daemon you called.
+- On a control plane, `ao spawn` is always placed on a worker. Omitting `--node` lets the scheduler choose an online always-on worker. On a daemon that is not a control plane, omitting `--node` still runs the session locally.
+- `ao send` to a placed session is delivered to the worker that owns it. The worker addresses the session by the id its own engine created.
 - `--node <id>` pins it to that worker. An on-demand node is woken through its configured broker and is not eligible for automatic choice.
 - `--platform <os>` limits automatic choice to a worker that offers that family.
 - A session's directory stays on the node that created it. A lost heartbeat marks the placement `offline`. It does not terminate the session and does not move the directory.

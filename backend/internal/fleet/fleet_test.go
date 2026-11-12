@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -316,6 +317,51 @@ func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
 	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) {
 		t.Fatalf("board = %+v", board)
 	}
+}
+
+func TestDeliverMessageUsesTheEngineID(t *testing.T) {
+	store := openDB(t)
+	hub := NewHub()
+	svc := NewService(store, hub)
+	ctx := context.Background()
+	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
+		t.Fatal(err)
+	}
+	conn := &recordingConn{}
+	hub.Attach("w", conn)
+	if err := store.PutPlacement(ctx, SessionPlacement{SessionID: "job", NodeID: "w", State: PlacementRunning, EngineID: "engine-1"}); err != nil {
+		t.Fatal(err)
+	}
+	handled, err := svc.DeliverMessage(ctx, "engine-1", "continue")
+	if err != nil || !handled {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	if len(conn.cmds) != 1 || conn.cmds[0].Kind != CommandMessage || !bytes.Contains(conn.cmds[0].Payload, []byte("engine-1")) {
+		t.Fatalf("commands = %+v", conn.cmds)
+	}
+	handled, err = svc.DeliverMessage(ctx, "missing", "nope")
+	if err != nil || handled {
+		t.Fatalf("missing handled=%v err=%v", handled, err)
+	}
+}
+
+func TestWorkerDeliversAMessageToItsEngine(t *testing.T) {
+	var gotSession, gotMessage string
+	handler := WorkerHandlerWithMessages(nil, messengerFunc(func(_ context.Context, sessionID, message string) error {
+		gotSession, gotMessage = sessionID, message
+		return nil
+	}), nil, nil)
+	body, _ := json.Marshal(map[string]string{"sessionId": "engine-1", "message": "continue"})
+	ev := handler(context.Background(), Command{Kind: CommandMessage, Payload: body})
+	if ev.Kind == EventFailed || gotSession != "engine-1" || gotMessage != "continue" {
+		t.Fatalf("event=%+v session=%s message=%s", ev, gotSession, gotMessage)
+	}
+}
+
+type messengerFunc func(context.Context, string, string) error
+
+func (f messengerFunc) Send(ctx context.Context, sessionID, message string) error {
+	return f(ctx, sessionID, message)
 }
 
 func TestLocalCapabilitiesKeepsCredentialsOffTheWire(t *testing.T) {
