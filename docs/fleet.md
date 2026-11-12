@@ -37,7 +37,7 @@ ao daemon
 - `--platform <os>` limits automatic choice to a worker that offers that family.
 - A session's directory stays on the node that created it. A lost heartbeat marks the placement `offline`. It does not terminate the session and does not move the directory.
 - The control plane's session list includes placed sessions. `ownerNodeId` says which machine holds the directory, and `placementState` is the placement fact. These rows have no local process, so the local reaper leaves them alone.
-- An orchestrator session ignores those choices. Its project config must set both `orchestratorHomeNode` and `orchestratorCheckout`. The checkout is a long-lived directory on that one node.
+- An orchestrator session ignores those choices. Its project config must set both `orchestratorHomeNode` and `orchestratorCheckout`. The worker runs that session in the checkout directory instead of creating a worktree. Ending the session does not delete the checkout, because it is outside the managed worktree root and teardown preserves a directory it does not own.
 
 ## Power
 

@@ -12,6 +12,9 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
 )
 
 func openDB(t *testing.T) *Store {
@@ -343,6 +346,39 @@ func TestDeliverMessageUsesTheEngineID(t *testing.T) {
 	if err != nil || handled {
 		t.Fatalf("missing handled=%v err=%v", handled, err)
 	}
+}
+
+func TestOrchestratorSpawnKeepsTheConfiguredCheckout(t *testing.T) {
+	dir := t.TempDir()
+	exec := &recordingExec{}
+	handler := WorkerHandler(exec, nil, nil)
+	body, _ := json.Marshal(SpawnRequest{SessionID: "job", Kind: "orchestrator", Checkout: dir, Harness: "claude-code"})
+	ev := handler(context.Background(), Command{Kind: CommandSpawn, Payload: body})
+	if ev.Kind == EventFailed {
+		t.Fatal(string(ev.Payload))
+	}
+	if exec.cfg.ExistingCheckout != dir || exec.cfg.Kind != "orchestrator" {
+		t.Fatalf("spawn = %+v", exec.cfg)
+	}
+	body, _ = json.Marshal(SpawnRequest{SessionID: "job", Kind: "worker", Checkout: dir})
+	ev = handler(context.Background(), Command{Kind: CommandSpawn, Payload: body})
+	if ev.Kind != EventFailed {
+		t.Fatal("a worker spawn was allowed to adopt a fixed checkout")
+	}
+	body, _ = json.Marshal(SpawnRequest{SessionID: "job", Kind: "orchestrator", Checkout: filepath.Join(dir, "missing")})
+	ev = handler(context.Background(), Command{Kind: CommandSpawn, Payload: body})
+	if ev.Kind != EventFailed || exec.cfg.ExistingCheckout != dir {
+		t.Fatal("a missing checkout reached the engine")
+	}
+}
+
+type recordingExec struct {
+	cfg ports.SpawnConfig
+}
+
+func (e *recordingExec) Spawn(_ context.Context, cfg ports.SpawnConfig) (domain.Session, int, int, error) {
+	e.cfg = cfg
+	return domain.Session{SessionRecord: domain.SessionRecord{ID: "engine"}}, 0, 0, nil
 }
 
 func TestWorkerDeliversAMessageToItsEngine(t *testing.T) {

@@ -105,6 +105,9 @@ type SpawnConfig struct {
 	NodeID string
 	// Platform constrains automatic fleet placement. Empty imposes none.
 	Platform string
+	// ExistingCheckout is an orchestrator session's long-lived directory. When
+	// set, spawn uses it instead of creating a worktree. Worker sessions ignore it.
+	ExistingCheckout string
 }
 
 // SpawnAttachment is a single file attached to a spawn request. Data holds the

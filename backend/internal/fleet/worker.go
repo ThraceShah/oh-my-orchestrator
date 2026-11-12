@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/domain"
 	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/ports"
@@ -60,15 +62,25 @@ func handleSpawn(ctx context.Context, exec Executor, cmd Command) Event {
 	if exec == nil {
 		return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw("this worker has no session engine")}
 	}
+	if strings.TrimSpace(req.Checkout) != "" && req.Kind != string(domain.KindOrchestrator) {
+		return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw("a fixed checkout is only valid for an orchestrator session")}
+	}
+	if strings.TrimSpace(req.Checkout) != "" {
+		info, err := os.Stat(req.Checkout)
+		if err != nil || !info.IsDir() {
+			return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw("orchestrator checkout is not a directory on this machine")}
+		}
+	}
 	cfg := ports.SpawnConfig{
-		ProjectID:       domain.ProjectID(req.ProjectID),
-		ParentSessionID: domain.SessionID(req.ParentID),
-		Kind:            domain.SessionKind(req.Kind),
-		Harness:         domain.AgentHarness(req.Harness),
-		RequestedMode:   domain.SessionMode(req.Mode),
-		Branch:          req.Branch,
-		Prompt:          req.Prompt,
-		DisplayName:     req.DisplayName,
+		ProjectID:        domain.ProjectID(req.ProjectID),
+		ParentSessionID:  domain.SessionID(req.ParentID),
+		Kind:             domain.SessionKind(req.Kind),
+		Harness:          domain.AgentHarness(req.Harness),
+		RequestedMode:    domain.SessionMode(req.Mode),
+		Branch:           req.Branch,
+		Prompt:           req.Prompt,
+		DisplayName:      req.DisplayName,
+		ExistingCheckout: req.Checkout,
 	}
 	session, _, _, err := exec.Spawn(ctx, cfg)
 	if err != nil {
