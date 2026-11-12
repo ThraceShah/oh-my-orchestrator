@@ -1845,6 +1845,131 @@ func (f fleetChat) SwitchProviderAndSend(ctx context.Context, id domain.SessionI
 	return result.Turn, result.Switched, nil
 }
 
+func (f fleetChat) Models(ctx context.Context, id domain.SessionID) ([]ports.ChatModel, domain.ConversationSettings, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "models", nil)
+	if !handled {
+		return f.ConversationService.Models(ctx, id)
+	}
+	if err != nil {
+		return nil, domain.ConversationSettings{}, err
+	}
+	var result struct {
+		Models   []ports.ChatModel           `json:"models"`
+		Settings domain.ConversationSettings `json:"settings"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, domain.ConversationSettings{}, err
+	}
+	return result.Models, result.Settings, nil
+}
+
+func (f fleetChat) ConfigOptions(ctx context.Context, id domain.SessionID) ([]ports.ChatConfigOption, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "config-options", nil)
+	if !handled {
+		return f.ConversationService.ConfigOptions(ctx, id)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var options []ports.ChatConfigOption
+	if err := json.Unmarshal(raw, &options); err != nil {
+		return nil, err
+	}
+	return options, nil
+}
+
+func (f fleetChat) SetConfigOption(ctx context.Context, id domain.SessionID, configID string, value ports.ChatConfigOptionValue) ([]ports.ChatConfigOption, error) {
+	payload, err := json.Marshal(struct {
+		ConfigID string                      `json:"configId"`
+		Value    ports.ChatConfigOptionValue `json:"value"`
+	}{configID, value})
+	if err != nil {
+		return nil, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "set-config-option", payload)
+	if !handled {
+		return f.ConversationService.SetConfigOption(ctx, id, configID, value)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var options []ports.ChatConfigOption
+	if err := json.Unmarshal(raw, &options); err != nil {
+		return nil, err
+	}
+	return options, nil
+}
+
+func (f fleetChat) SetTurnSettings(ctx context.Context, id domain.SessionID, settings domain.ConversationSettings) (domain.ConversationSettings, error) {
+	payload, err := json.Marshal(settings)
+	if err != nil {
+		return domain.ConversationSettings{}, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "turn-settings", payload)
+	if !handled {
+		return f.ConversationService.SetTurnSettings(ctx, id, settings)
+	}
+	if err != nil {
+		return domain.ConversationSettings{}, err
+	}
+	var result domain.ConversationSettings
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return domain.ConversationSettings{}, err
+	}
+	return result, nil
+}
+
+func (f fleetChat) Skills(ctx context.Context, id domain.SessionID) ([]ports.ChatSkill, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "skills", nil)
+	if !handled {
+		return f.ConversationService.Skills(ctx, id)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var skills []ports.ChatSkill
+	if err := json.Unmarshal(raw, &skills); err != nil {
+		return nil, err
+	}
+	return skills, nil
+}
+
+func (f fleetChat) SetTitle(ctx context.Context, id domain.SessionID, title string) (string, error) {
+	payload, err := json.Marshal(struct {
+		Title string `json:"title"`
+	}{title})
+	if err != nil {
+		return "", err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "title", payload)
+	if !handled {
+		return f.ConversationService.SetTitle(ctx, id, title)
+	}
+	if err != nil {
+		return "", err
+	}
+	var result string
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func (f fleetChat) ReloadMCPServers(ctx context.Context, id domain.SessionID) ([]domain.ConversationMCPServer, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "reload-mcp", nil)
+	if !handled {
+		return f.ConversationService.ReloadMCPServers(ctx, id)
+	}
+	if err != nil {
+		return nil, err
+	}
+	var servers []domain.ConversationMCPServer
+	if err := json.Unmarshal(raw, &servers); err != nil {
+		return nil, err
+	}
+	return servers, nil
+}
+
 func (f fleetChat) Compact(ctx context.Context, id domain.SessionID) (ports.ChatCompactionResult, error) {
 	raw, handled, err := f.fleet.Chat(ctx, string(id), "compact", nil)
 	if !handled {
@@ -2049,6 +2174,68 @@ func workerChat(svc *chatsvc.Service) fleet.ChatFunc {
 				return nil, err
 			}
 			return json.RawMessage(`{}`), nil
+		case "models":
+			models, settings, err := svc.Models(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(struct {
+				Models   []ports.ChatModel           `json:"models"`
+				Settings domain.ConversationSettings `json:"settings"`
+			}{models, settings})
+		case "config-options":
+			options, err := svc.ConfigOptions(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(options)
+		case "set-config-option":
+			var option struct {
+				ConfigID string                      `json:"configId"`
+				Value    ports.ChatConfigOptionValue `json:"value"`
+			}
+			if err := json.Unmarshal(payload, &option); err != nil {
+				return nil, err
+			}
+			options, err := svc.SetConfigOption(ctx, id, option.ConfigID, option.Value)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(options)
+		case "turn-settings":
+			var settings domain.ConversationSettings
+			if err := json.Unmarshal(payload, &settings); err != nil {
+				return nil, err
+			}
+			updated, err := svc.SetTurnSettings(ctx, id, settings)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(updated)
+		case "skills":
+			skills, err := svc.Skills(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(skills)
+		case "title":
+			var title struct {
+				Title string `json:"title"`
+			}
+			if err := json.Unmarshal(payload, &title); err != nil {
+				return nil, err
+			}
+			set, err := svc.SetTitle(ctx, id, title.Title)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(set)
+		case "reload-mcp":
+			servers, err := svc.ReloadMCPServers(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(servers)
 		case "switch-provider-send":
 			var body struct {
 				Request domain.ProviderSwitchRequest `json:"request"`
