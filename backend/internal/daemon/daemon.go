@@ -778,6 +778,7 @@ func Run(buildVersion string) error {
 	if fleetRuntime != nil {
 		placement := &fleet.PlacementService{Fleet: fleetRuntime.Service, Projects: fleet.ProjectConfigHomes{Projects: projectSvc}}
 		sessionSvc.SetFleetPlacement(placement.Place)
+		sessionSvc.SetFleetBoard(fleetRuntime.Service.BoardSessions)
 	}
 	if cfg.Fleet.Role == "worker" {
 		var power fleet.PowerFunc

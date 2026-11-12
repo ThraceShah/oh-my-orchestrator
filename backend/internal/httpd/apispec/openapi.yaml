@@ -17111,11 +17111,15 @@ components:
           - artifact
           - pr_artifact
           type: string
+        ownerNodeId:
+          type: string
         pinnedAt:
           format: date-time
           type:
           - "null"
           - string
+        placementState:
+          type: string
         previewRevision:
           format: int64
           type: integer
@@ -20202,6 +20206,10 @@ components:
           type: object
         orchestrator:
           $ref: '#/components/schemas/RoleOverride'
+        orchestratorCheckout:
+          type: string
+        orchestratorHomeNode:
+          type: string
         orchestratorRules:
           type: string
         orchestratorRulesFile:
@@ -22787,7 +22795,11 @@ components:
         model:
           maxLength: 256
           type: string
+        nodeId:
+          type: string
         parentSessionId:
+          type: string
+        platform:
           type: string
         projectId:
           type: string

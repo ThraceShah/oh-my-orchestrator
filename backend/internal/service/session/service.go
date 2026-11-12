@@ -262,6 +262,7 @@ type Service struct {
 	// fleetPlace runs a spawn on an enrolled worker when NodeID or Platform is
 	// set. Nil means this daemon has no fleet, so those fields are rejected.
 	fleetPlace             func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)
+	fleetBoard             func(context.Context) ([]domain.Session, error)
 	titleRefinementSlots   chan struct{}
 	titleRefinementMu      sync.Mutex
 	titleRefinementCancels map[domain.SessionID]context.CancelFunc
@@ -386,6 +387,12 @@ func NewWithDeps(d Deps) *Service {
 // a daemon that is not running a fleet, which keeps ordinary spawns local.
 func (s *Service) SetFleetPlacement(place func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)) {
 	s.fleetPlace = place
+}
+
+// SetFleetBoard adds sessions that live on other machines to the control
+// plane's list. They are not local rows, so a local reaper cannot terminate them.
+func (s *Service) SetFleetBoard(board func(context.Context) ([]domain.Session, error)) {
+	s.fleetBoard = board
 }
 
 // SetUsageArchiveFlush sends pending session summaries after a user archive.
@@ -1685,6 +1692,22 @@ func (s *Service) ListPage(ctx context.Context, filter ListFilter) (ListPage, er
 	page.Sessions, err = s.sessionsFromRecords(ctx, matched, recoveryRevision)
 	if err != nil {
 		return ListPage{}, err
+	}
+	if s.fleetBoard != nil && filter.Cursor == "" {
+		extra, err := s.fleetBoard(ctx)
+		if err != nil {
+			return ListPage{}, err
+		}
+		if filter.ProjectID != "" {
+			kept := extra[:0]
+			for _, sess := range extra {
+				if sess.ProjectID == filter.ProjectID {
+					kept = append(kept, sess)
+				}
+			}
+			extra = kept
+		}
+		page.Sessions = append(page.Sessions, extra...)
 	}
 	return page, nil
 }

@@ -77,14 +77,16 @@ type Capability struct {
 
 // SessionPlacement records which node owns a session's directory.
 type SessionPlacement struct {
-	SessionID string    `json:"sessionId"`
-	NodeID    string    `json:"nodeId,omitempty"`
-	State     Placement `json:"state"`
-	Detail    string    `json:"detail,omitempty"`
-	// EngineID is the session id created by the owning worker's local engine.
-	// It can differ from SessionID, which is the control plane's placement key.
-	EngineID  string    `json:"engineId,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	SessionID   string    `json:"sessionId"`
+	NodeID      string    `json:"nodeId,omitempty"`
+	State       Placement `json:"state"`
+	Detail      string    `json:"detail,omitempty"`
+	EngineID    string    `json:"engineId,omitempty"`
+	ProjectID   string    `json:"projectId,omitempty"`
+	Kind        string    `json:"kind,omitempty"`
+	Harness     string    `json:"harness,omitempty"`
+	DisplayName string    `json:"displayName,omitempty"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // SpawnRequest is the worker-facing instruction to start a session. The

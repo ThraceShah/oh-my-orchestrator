@@ -60,6 +60,7 @@ func (s *Service) PlaceAndDispatch(ctx context.Context, req Request, spawn Spawn
 	}
 	placement := SessionPlacement{
 		SessionID: req.SessionID, NodeID: decision.NodeID, State: decision.State, UpdatedAt: s.now(),
+		ProjectID: spawn.ProjectID, Kind: spawn.Kind, Harness: spawn.Harness, DisplayName: spawn.DisplayName,
 	}
 	if err := s.store.PutPlacement(ctx, placement); err != nil {
 		return Decision{}, err

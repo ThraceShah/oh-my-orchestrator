@@ -5897,8 +5897,10 @@ export interface components {
             needsResume: boolean;
             /** @enum {string} */
             outputType: "none" | "pr" | "artifact" | "pr_artifact";
+            ownerNodeId?: string;
             /** Format: date-time */
             pinnedAt?: null | string;
+            placementState?: string;
             /** Format: int64 */
             previewRevision?: number;
             previewUrl?: string;
@@ -7053,6 +7055,8 @@ export interface components {
                 [key: string]: string;
             };
             orchestrator?: components["schemas"]["RoleOverride"];
+            orchestratorCheckout?: string;
+            orchestratorHomeNode?: string;
             orchestratorRules?: string;
             orchestratorRulesFile?: string;
             postCreate?: string[];
@@ -8078,7 +8082,9 @@ export interface components {
             /** @enum {string} */
             mode?: "chat" | "tui";
             model?: string;
+            nodeId?: string;
             parentSessionId?: string;
+            platform?: string;
             projectId?: string;
             prompt?: string;
             /** @enum {string} */

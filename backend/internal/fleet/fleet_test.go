@@ -292,6 +292,32 @@ func hubNode(t *testing.T, hub *Hub, id string) *recordingConn {
 	return conn
 }
 
+func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
+	store := openDB(t)
+	svc := NewService(store, NewHub())
+	ctx := context.Background()
+	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Heartbeat(ctx, "w", []Capability{{Harness: "claude-code", LoggedIn: true}})
+	hub := NewHub()
+	svc = NewService(store, hub)
+	hub.Attach("w", &recordingConn{})
+	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "job", Kind: "worker", Harness: "claude-code"}, SpawnRequest{SessionID: "job", Kind: "worker", Harness: "claude-code", DisplayName: "Remote"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.NoteStarted(ctx, "job", "w", "engine-1"); err != nil {
+		t.Fatal(err)
+	}
+	board, err := svc.BoardSessions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) {
+		t.Fatalf("board = %+v", board)
+	}
+}
+
 func TestLocalCapabilitiesKeepsCredentialsOffTheWire(t *testing.T) {
 	caps, err := LocalCapabilities(context.Background(), func(context.Context) ([]string, []string, error) {
 		return []string{"claude-code", "codex"}, []string{"claude-code"}, nil

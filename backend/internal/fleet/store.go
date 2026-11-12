@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS fleet_session_placements (
     state TEXT NOT NULL,
     detail TEXT NOT NULL DEFAULT '',
     engine_id TEXT NOT NULL DEFAULT '',
+    project_id TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT '',
+    harness TEXT NOT NULL DEFAULT '',
+    display_name TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL
 );
 `)
@@ -66,8 +70,16 @@ CREATE TABLE IF NOT EXISTS fleet_session_placements (
 	}
 	// Tables created before engine_id existed keep working. A duplicate-column
 	// error means this database already has the column.
-	if _, err := s.db.ExecContext(ctx, `ALTER TABLE fleet_session_placements ADD COLUMN engine_id TEXT NOT NULL DEFAULT ''`); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
-		return err
+	for _, column := range []string{
+		`engine_id TEXT NOT NULL DEFAULT ''`,
+		`project_id TEXT NOT NULL DEFAULT ''`,
+		`kind TEXT NOT NULL DEFAULT ''`,
+		`harness TEXT NOT NULL DEFAULT ''`,
+		`display_name TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := s.db.ExecContext(ctx, `ALTER TABLE fleet_session_placements ADD COLUMN `+column); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
 	}
 	return nil
 }
@@ -251,15 +263,20 @@ func (s *Store) PutPlacement(ctx context.Context, p SessionPlacement) error {
 		p.UpdatedAt = s.now()
 	}
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO fleet_session_placements (session_id, node_id, state, detail, engine_id, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO fleet_session_placements (
+    session_id, node_id, state, detail, engine_id, project_id, kind, harness, display_name, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(session_id) DO UPDATE SET
     node_id = excluded.node_id,
     state = excluded.state,
     detail = excluded.detail,
     engine_id = CASE WHEN excluded.engine_id = '' THEN fleet_session_placements.engine_id ELSE excluded.engine_id END,
+    project_id = CASE WHEN excluded.project_id = '' THEN fleet_session_placements.project_id ELSE excluded.project_id END,
+    kind = CASE WHEN excluded.kind = '' THEN fleet_session_placements.kind ELSE excluded.kind END,
+    harness = CASE WHEN excluded.harness = '' THEN fleet_session_placements.harness ELSE excluded.harness END,
+    display_name = CASE WHEN excluded.display_name = '' THEN fleet_session_placements.display_name ELSE excluded.display_name END,
     updated_at = excluded.updated_at`,
-		p.SessionID, p.NodeID, string(p.State), p.Detail, p.EngineID, p.UpdatedAt.UTC().Format(time.RFC3339Nano))
+		p.SessionID, p.NodeID, string(p.State), p.Detail, p.EngineID, p.ProjectID, p.Kind, p.Harness, p.DisplayName, p.UpdatedAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
@@ -272,9 +289,9 @@ func (s *Store) PlacementFor(ctx context.Context, id string) (SessionPlacement, 
 	var p SessionPlacement
 	var state, updated string
 	err = s.db.QueryRowContext(ctx, `
-SELECT session_id, node_id, state, detail, engine_id, updated_at
+SELECT session_id, node_id, state, detail, engine_id, project_id, kind, harness, display_name, updated_at
 FROM fleet_session_placements WHERE engine_id = ?`, id).
-		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &updated)
+		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &p.ProjectID, &p.Kind, &p.Harness, &p.DisplayName, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return SessionPlacement{}, false, nil
 	}
@@ -290,8 +307,9 @@ func (s *Store) Placement(ctx context.Context, sessionID string) (SessionPlaceme
 	var p SessionPlacement
 	var state, updated string
 	err := s.db.QueryRowContext(ctx, `
-SELECT session_id, node_id, state, detail, engine_id, updated_at FROM fleet_session_placements WHERE session_id = ?`, sessionID).
-		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &updated)
+SELECT session_id, node_id, state, detail, engine_id, project_id, kind, harness, display_name, updated_at
+FROM fleet_session_placements WHERE session_id = ?`, sessionID).
+		Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &p.ProjectID, &p.Kind, &p.Harness, &p.DisplayName, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return SessionPlacement{}, false, nil
 	}
@@ -301,6 +319,28 @@ SELECT session_id, node_id, state, detail, engine_id, updated_at FROM fleet_sess
 	p.State = Placement(state)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 	return p, true, nil
+}
+
+func (s *Store) ListPlacements(ctx context.Context) ([]SessionPlacement, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT session_id, node_id, state, detail, engine_id, project_id, kind, harness, display_name, updated_at
+FROM fleet_session_placements ORDER BY updated_at, session_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SessionPlacement
+	for rows.Next() {
+		var p SessionPlacement
+		var state, updated string
+		if err := rows.Scan(&p.SessionID, &p.NodeID, &state, &p.Detail, &p.EngineID, &p.ProjectID, &p.Kind, &p.Harness, &p.DisplayName, &updated); err != nil {
+			return nil, err
+		}
+		p.State = Placement(state)
+		p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) CountActive(ctx context.Context, nodeID string) (int, error) {
