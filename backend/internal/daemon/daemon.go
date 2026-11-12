@@ -1744,6 +1744,107 @@ func (f fleetChat) ResolveInput(ctx context.Context, id domain.SessionID, reques
 	return err
 }
 
+func (f fleetChat) Rollback(ctx context.Context, id domain.SessionID, turnID string) (int, error) {
+	payload, err := json.Marshal(struct {
+		TurnID string `json:"turnId"`
+	}{turnID})
+	if err != nil {
+		return 0, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "rollback", payload)
+	if !handled {
+		return f.ConversationService.Rollback(ctx, id, turnID)
+	}
+	if err != nil {
+		return 0, err
+	}
+	var discarded int
+	if err := json.Unmarshal(raw, &discarded); err != nil {
+		return 0, err
+	}
+	return discarded, nil
+}
+
+func (f fleetChat) EditMessage(ctx context.Context, id domain.SessionID, turnID string, msg ports.ChatUserMessage) (chatsvc.EditMessageResult, error) {
+	payload, err := json.Marshal(struct {
+		TurnID  string                `json:"turnId"`
+		Message ports.ChatUserMessage `json:"message"`
+	}{turnID, msg})
+	if err != nil {
+		return chatsvc.EditMessageResult{}, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "edit", payload)
+	if !handled {
+		return f.ConversationService.EditMessage(ctx, id, turnID, msg)
+	}
+	if err != nil {
+		return chatsvc.EditMessageResult{}, err
+	}
+	var result chatsvc.EditMessageResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return chatsvc.EditMessageResult{}, err
+	}
+	return result, nil
+}
+
+func (f fleetChat) ActivateBranch(ctx context.Context, id domain.SessionID, branchID string) (string, error) {
+	payload, err := json.Marshal(struct {
+		BranchID string `json:"branchId"`
+	}{branchID})
+	if err != nil {
+		return "", err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "activate-branch", payload)
+	if !handled {
+		return f.ConversationService.ActivateBranch(ctx, id, branchID)
+	}
+	if err != nil {
+		return "", err
+	}
+	var active string
+	if err := json.Unmarshal(raw, &active); err != nil {
+		return "", err
+	}
+	return active, nil
+}
+
+func (f fleetChat) SwitchProvider(ctx context.Context, id domain.SessionID, request domain.ProviderSwitchRequest) error {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	_, handled, err := f.fleet.Chat(ctx, string(id), "switch-provider", payload)
+	if !handled {
+		return f.ConversationService.SwitchProvider(ctx, id, request)
+	}
+	return err
+}
+
+func (f fleetChat) SwitchProviderAndSend(ctx context.Context, id domain.SessionID, request domain.ProviderSwitchRequest, msg ports.ChatUserMessage) (domain.ConversationTurn, bool, error) {
+	payload, err := json.Marshal(struct {
+		Request domain.ProviderSwitchRequest `json:"request"`
+		Message ports.ChatUserMessage        `json:"message"`
+	}{request, msg})
+	if err != nil {
+		return domain.ConversationTurn{}, false, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "switch-provider-send", payload)
+	if !handled {
+		return f.ConversationService.SwitchProviderAndSend(ctx, id, request, msg)
+	}
+	if err != nil {
+		return domain.ConversationTurn{}, false, err
+	}
+	var result struct {
+		Turn     domain.ConversationTurn `json:"turn"`
+		Switched bool                    `json:"switched"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return domain.ConversationTurn{}, false, err
+	}
+	return result.Turn, result.Switched, nil
+}
+
 func (f fleetChat) Compact(ctx context.Context, id domain.SessionID) (ports.ChatCompactionResult, error) {
 	raw, handled, err := f.fleet.Chat(ctx, string(id), "compact", nil)
 	if !handled {
@@ -1902,6 +2003,68 @@ func workerChat(svc *chatsvc.Service) fleet.ChatFunc {
 				return nil, err
 			}
 			return json.Marshal(result)
+		case "rollback":
+			var body struct {
+				TurnID string `json:"turnId"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			discarded, err := svc.Rollback(ctx, id, body.TurnID)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(discarded)
+		case "edit":
+			var body struct {
+				TurnID  string                `json:"turnId"`
+				Message ports.ChatUserMessage `json:"message"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			edited, err := svc.EditMessage(ctx, id, body.TurnID, body.Message)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(edited)
+		case "activate-branch":
+			var body struct {
+				BranchID string `json:"branchId"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			active, err := svc.ActivateBranch(ctx, id, body.BranchID)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(active)
+		case "switch-provider":
+			var request domain.ProviderSwitchRequest
+			if err := json.Unmarshal(payload, &request); err != nil {
+				return nil, err
+			}
+			if err := svc.SwitchProvider(ctx, id, request); err != nil {
+				return nil, err
+			}
+			return json.RawMessage(`{}`), nil
+		case "switch-provider-send":
+			var body struct {
+				Request domain.ProviderSwitchRequest `json:"request"`
+				Message ports.ChatUserMessage        `json:"message"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			turn, switched, err := svc.SwitchProviderAndSend(ctx, id, body.Request, body.Message)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(struct {
+				Turn     domain.ConversationTurn `json:"turn"`
+				Switched bool                    `json:"switched"`
+			}{turn, switched})
 		default:
 			return nil, fmt.Errorf("unsupported chat operation %s", op)
 		}
