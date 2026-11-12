@@ -1744,6 +1744,61 @@ func (f fleetChat) ResolveInput(ctx context.Context, id domain.SessionID, reques
 	return err
 }
 
+func (f fleetChat) Compact(ctx context.Context, id domain.SessionID) (ports.ChatCompactionResult, error) {
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "compact", nil)
+	if !handled {
+		return f.ConversationService.Compact(ctx, id)
+	}
+	if err != nil {
+		return ports.ChatCompactionResult{}, err
+	}
+	var result ports.ChatCompactionResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return ports.ChatCompactionResult{}, err
+	}
+	return result, nil
+}
+
+func (f fleetChat) RetryTurn(ctx context.Context, id domain.SessionID, turnID string) (domain.ConversationTurn, error) {
+	payload, err := json.Marshal(struct {
+		TurnID string `json:"turnId"`
+	}{turnID})
+	if err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "retry", payload)
+	if !handled {
+		return f.ConversationService.RetryTurn(ctx, id, turnID)
+	}
+	if err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	var turn domain.ConversationTurn
+	if err := json.Unmarshal(raw, &turn); err != nil {
+		return domain.ConversationTurn{}, err
+	}
+	return turn, nil
+}
+
+func (f fleetChat) Steer(ctx context.Context, id domain.SessionID, msg ports.ChatUserMessage) (chatsvc.SteerResult, error) {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return chatsvc.SteerResult{}, err
+	}
+	raw, handled, err := f.fleet.Chat(ctx, string(id), "steer", payload)
+	if !handled {
+		return f.ConversationService.Steer(ctx, id, msg)
+	}
+	if err != nil {
+		return chatsvc.SteerResult{}, err
+	}
+	var result chatsvc.SteerResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return chatsvc.SteerResult{}, err
+	}
+	return result, nil
+}
+
 func (f fleetChat) Send(ctx context.Context, id domain.SessionID, msg ports.ChatUserMessage) (domain.ConversationTurn, error) {
 	payload, err := json.Marshal(msg)
 	if err != nil {
@@ -1817,6 +1872,36 @@ func workerChat(svc *chatsvc.Service) fleet.ChatFunc {
 				return nil, err
 			}
 			return json.RawMessage(`{}`), nil
+		case "compact":
+			result, err := svc.Compact(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(result)
+		case "retry":
+			var body struct {
+				TurnID string `json:"turnId"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			turn, err := svc.RetryTurn(ctx, id, body.TurnID)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(turn)
+		case "steer":
+			var msg ports.ChatUserMessage
+			if len(payload) > 0 {
+				if err := json.Unmarshal(payload, &msg); err != nil {
+					return nil, err
+				}
+			}
+			result, err := svc.Steer(ctx, id, msg)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(result)
 		default:
 			return nil, fmt.Errorf("unsupported chat operation %s", op)
 		}
