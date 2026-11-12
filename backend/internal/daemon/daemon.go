@@ -1706,6 +1706,44 @@ func (f fleetChat) Snapshot(ctx context.Context, id domain.SessionID) (chatsvc.S
 	return snap, nil
 }
 
+func (f fleetChat) Interrupt(ctx context.Context, id domain.SessionID) error {
+	_, handled, err := f.fleet.Chat(ctx, string(id), "interrupt", nil)
+	if !handled {
+		return f.ConversationService.Interrupt(ctx, id)
+	}
+	return err
+}
+
+func (f fleetChat) Resolve(ctx context.Context, id domain.SessionID, requestID string, decision ports.ChatDecision) error {
+	payload, err := json.Marshal(struct {
+		RequestID string             `json:"requestId"`
+		Decision  ports.ChatDecision `json:"decision"`
+	}{requestID, decision})
+	if err != nil {
+		return err
+	}
+	_, handled, err := f.fleet.Chat(ctx, string(id), "resolve", payload)
+	if !handled {
+		return f.ConversationService.Resolve(ctx, id, requestID, decision)
+	}
+	return err
+}
+
+func (f fleetChat) ResolveInput(ctx context.Context, id domain.SessionID, requestID string, response ports.ChatInputResponse) error {
+	payload, err := json.Marshal(struct {
+		RequestID string                  `json:"requestId"`
+		Response  ports.ChatInputResponse `json:"response"`
+	}{requestID, response})
+	if err != nil {
+		return err
+	}
+	_, handled, err := f.fleet.Chat(ctx, string(id), "resolve-input", payload)
+	if !handled {
+		return f.ConversationService.ResolveInput(ctx, id, requestID, response)
+	}
+	return err
+}
+
 func (f fleetChat) Send(ctx context.Context, id domain.SessionID, msg ports.ChatUserMessage) (domain.ConversationTurn, error) {
 	payload, err := json.Marshal(msg)
 	if err != nil {
@@ -1750,6 +1788,35 @@ func workerChat(svc *chatsvc.Service) fleet.ChatFunc {
 				return nil, err
 			}
 			return json.Marshal(turn)
+		case "interrupt":
+			if err := svc.Interrupt(ctx, id); err != nil {
+				return nil, err
+			}
+			return json.RawMessage(`{}`), nil
+		case "resolve":
+			var body struct {
+				RequestID string             `json:"requestId"`
+				Decision  ports.ChatDecision `json:"decision"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			if err := svc.Resolve(ctx, id, body.RequestID, body.Decision); err != nil {
+				return nil, err
+			}
+			return json.RawMessage(`{}`), nil
+		case "resolve-input":
+			var body struct {
+				RequestID string                  `json:"requestId"`
+				Response  ports.ChatInputResponse `json:"response"`
+			}
+			if err := json.Unmarshal(payload, &body); err != nil {
+				return nil, err
+			}
+			if err := svc.ResolveInput(ctx, id, body.RequestID, body.Response); err != nil {
+				return nil, err
+			}
+			return json.RawMessage(`{}`), nil
 		default:
 			return nil, fmt.Errorf("unsupported chat operation %s", op)
 		}
