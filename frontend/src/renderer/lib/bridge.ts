@@ -1,7 +1,27 @@
 import type { AoBridge } from "../../preload";
 import { coerceUiSettings, DEFAULT_UI_SETTINGS } from "../../shared/ui-locale";
+import type { DaemonStatus } from "../../shared/daemon-status";
 export type { FeatureBuild } from "../../main/feature-builds";
 
+
+async function readWebDaemonStatus(): Promise<DaemonStatus> {
+	try {
+		const base = new URL(import.meta.env.BASE_URL, window.location.origin).href.replace(/\/+$/, "");
+		const response = await fetch(`${base}/readyz`, { cache: "no-store", signal: AbortSignal.timeout(5_000) });
+		if (!response.ok) throw new Error("Daemon readiness request failed.");
+		const status = await response.json() as { status?: string; port?: number; pid?: number };
+		if (status.status !== "ready" || !Number.isInteger(status.port) || (status.port ?? 0) <= 0) {
+			throw new Error("Daemon is not ready.");
+		}
+		return { state: "ready", port: status.port, ...(typeof status.pid === "number" ? { pid: status.pid } : {}) };
+	} catch {
+		return { state: "error", code: "daemon_unreachable", message: "The Orchestrator daemon is unavailable. Check the server connection." };
+	}
+}
+
+async function webDaemonControlUnavailable(): Promise<DaemonStatus> {
+	throw new Error("Manage the Orchestrator daemon on its host machine.");
+}
 
 export const aoBridge: AoBridge =
 	window.ao ??
@@ -153,13 +173,13 @@ export const aoBridge: AoBridge =
 			onFrameNavigated: () => () => undefined,
 		},
 		daemon: {
-			getStatus: async () => ({
+			getStatus: import.meta.env.VITE_AO_WEB === "1" ? readWebDaemonStatus : async () => ({
 				state: "stopped",
 				message: "Electron preload is not available in browser preview.",
 			}),
-			start: async () => ({ state: "starting" }),
-			stop: async () => ({ state: "stopped" }),
-			restart: async () => ({ state: "starting" }),
+			start: import.meta.env.VITE_AO_WEB === "1" ? webDaemonControlUnavailable : async () => ({ state: "starting" }),
+			stop: import.meta.env.VITE_AO_WEB === "1" ? webDaemonControlUnavailable : async () => ({ state: "stopped" }),
+			restart: import.meta.env.VITE_AO_WEB === "1" ? webDaemonControlUnavailable : async () => ({ state: "starting" }),
 			onStatus: () => () => undefined,
 		},
 		agentLogin: { request: async () => null },

@@ -11,7 +11,11 @@ import { useImportRun } from "./SessionImportDialog";
 import { Button } from "./ui/button";
 import { CloseButton } from "./ui/close-button";
 
-export function ProjectImportOffer({ projectId, className }: { projectId: string; className?: string }) {
+export function ProjectImportOffer(props: { projectId: string; className?: string }) {
+	return import.meta.env.VITE_AO_WEB === "1" ? null : <DesktopProjectImportOffer {...props} />;
+}
+
+function DesktopProjectImportOffer({ projectId, className }: { projectId: string; className?: string }) {
 	const { t } = useTranslation();
 	const workspaces = useQuery(workspaceQueryOptions);
 	const project = workspaces.data?.find((workspace) => workspace.id === projectId);

@@ -47,6 +47,12 @@ An on-demand node names its broker and the commands that broker should run. The 
 
 A placed session's `terminalHandleId` starts with `fleet-term:`. The control plane's ordinary `/mux` terminal recognizes that handle and relays the bytes to the worker that owns the session. The desktop does not need a second terminal client. `/internal/fleet/terminal` remains a loopback websocket for the same relay. The worker attaches the terminal its own engine already started. It does not launch another agent. A chat snapshot or a sent message for a placed session is answered by that worker's chat service. When that conversation changes, the worker tells the control plane, and the control plane emits a live `session_updated` hint so an open chat refetches the snapshot. The hint has no durable sequence and does not move the event cursor. Interrupt, approvals, steering, retry, compaction, history edits, provider switches, model lists, provider settings, skills, titles, and MCP reloads are sent to that same worker. A session this fleet does not own still uses the local chat service.
 
-## What is not included
+## Web operator
 
-The desktop still opens a terminal through its local mux. Pointing that mux at a fleet session is the next slice. Chat turns are not proxied.
+The portal serves the existing Orchestrator React renderer: the same sidebar, project board, task composer, conversation, and terminal components used by the desktop. It connects to the real control plane under the portal application prefix. The Fleet entry opens node status and on-demand power actions using the existing sidebar and dialog primitives. Build and proxy details are in [the portal deployment guide](../deploy/portal-operator/README.md).
+
+Enrollment and the daemon shutdown route are not exposed. The daemon stays on loopback; the portal is the login boundary. API event streams are forwarded immediately, and browser requests retain the application prefix across both portal domains.
+
+## Browser limitations
+
+Native folder pickers and opening editors require the desktop app. Those home actions are disabled in the browser, and host import/update prompts are hidden. Cloning supports a manually entered server destination. These browser adaptations do not implement additional worker RPC operations; remote session behavior remains limited to the fleet engine's supported operations.

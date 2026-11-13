@@ -123,6 +123,22 @@ beforeEach(() => {
 });
 
 describe("shell index route", () => {
+	it("offers standalone agents and explains unavailable folder actions in live web mode", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		routeMocks.cloudEnabled = true;
+		try {
+			render(<HomePage />);
+			expect(screen.getByRole("button", { name: "Open a local folder" })).toBeDisabled();
+			expect(screen.getByRole("button", { name: "Open a workspace" })).toBeDisabled();
+			expect(screen.queryByRole("button", { name: "Clone to the cloud" })).not.toBeInTheDocument();
+			expect(screen.getByText(/Cloned repositories and standalone agents run on the server/)).toBeVisible();
+			fireEvent.click(screen.getByRole("button", { name: "Start a standalone agent" }));
+			expect(useUiStore.getState().newTaskRequest?.projectId).toBe(STANDALONE_WORKSPACE_ID);
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
 	it("offers the clone prompt once to a fresh empty install", async () => {
 		const markSeen = vi.spyOn(aoBridge.appState, "markFirstRunProjectPromptSeen").mockResolvedValue();
 		vi.spyOn(aoBridge.appState, "getFirstRunProjectPrompt").mockResolvedValue("pending");

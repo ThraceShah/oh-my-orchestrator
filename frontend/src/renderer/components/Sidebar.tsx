@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useProjectAvatars } from "../hooks/useProjectAvatars";
+import { FleetControls } from "./FleetControls";
 import { paidPlanBadge, useCloudBilling } from "../hooks/useCloudBilling";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -1174,6 +1175,7 @@ export const Sidebar = memo(function Sidebar({
 					</SidebarGroup>
 				) : null}
 				<SidebarMenu className="mb-3 gap-0.5 group-data-[collapsible=icon]:gap-1">
+					{import.meta.env.VITE_AO_WEB === "1" && <FleetControls />}
 					<SidebarMenuItem>
 						<SidebarTopNavRow
 							active={selection.isAutomations}

@@ -154,6 +154,7 @@ export function HomePage() {
 }
 
 function HomePageContent() {
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
 	const fadeRef = useEdgeFadeRef<HTMLDivElement>();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
@@ -301,15 +302,17 @@ function HomePageContent() {
 							<HomeActionCard
 								icon={<FolderOpen />}
 								label={t("createProject.openLocal")}
+								disabled={isWeb}
 								onClick={() => requestSource("local")}
 							/>
 							<HomeActionCard
 								icon={<Folders />}
 								label={t("createProject.addWorkspace")}
+								disabled={isWeb}
 								onClick={() => requestSource("workspace")}
 							/>
 							{/* Cloud is on for everyone a control plane is configured for. */}
-							{cloudEnabled ? (
+							{cloudEnabled && !isWeb ? (
 								<HomeActionCard
 									icon={<Cloud />}
 									label={t("createProject.cloudTitle")}
@@ -323,6 +326,12 @@ function HomePageContent() {
 								/>
 							)}
 						</div>
+
+						{isWeb ? (
+							<p className="text-xs text-muted-foreground">
+								{t("home.webFolderRequirement", { defaultValue: "Open local folders and workspaces in the Orchestrator desktop app on the server. Cloned repositories and standalone agents run on the server." })}
+							</p>
+						) : null}
 
 						{/* Same section as the grid so the gap matches the grid's gap-3. */}
 						{recentProjects.length > 0 && (
@@ -349,7 +358,7 @@ function HomePageContent() {
 						)}
 					</section>
 
-					{workspaceQuery.isSuccess && recentProjects.length === 0 ? <SessionImportOffer /> : null}
+					{!isWeb && workspaceQuery.isSuccess && recentProjects.length === 0 ? <SessionImportOffer /> : null}
 				</div>
 
 				<CreateProjectFlow

@@ -31,7 +31,11 @@ function readDismissals(): Set<string> {
 
 /** Always mounted in the shell, not in a route or Settings. Read-only checks
  * and updates share the Harness page's queries; a login hands off to that page. */
-export function HarnessUpdateNotice({ enabled }: { enabled: boolean }) {
+export function HarnessUpdateNotice(props: { enabled: boolean }) {
+	return import.meta.env.VITE_AO_WEB === "1" ? null : <DesktopHarnessUpdateNotice {...props} />;
+}
+
+function DesktopHarnessUpdateNotice({ enabled }: { enabled: boolean }) {
 	const { t, i18n } = useTranslation();
 	const queryClient = useQueryClient();
 	const readiness = useAgentReadinessQuery(enabled);
