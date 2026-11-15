@@ -687,6 +687,8 @@ type Session struct {
 	// OwnerNodeID is the fleet worker whose disk holds this session. Empty means
 	// the session runs on this daemon. It is a placement fact, not a status.
 	OwnerNodeID string `json:"ownerNodeId,omitempty"`
+	// ParentSessionID is the permanent control-plane identity of the coordinator.
+	ParentSessionID SessionID `json:"parentSessionId,omitempty"`
 	// PlacementState is the fleet placement fact for a session that runs on
 	// another machine. Empty for a local session.
 	PlacementState string `json:"placementState,omitempty"`

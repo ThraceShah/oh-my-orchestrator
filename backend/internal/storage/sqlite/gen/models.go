@@ -464,6 +464,32 @@ type DeletedSessionAccountUsage struct {
 	EstimatedCostNanos int64
 }
 
+type FleetCapabilityDetail struct {
+	NodeID  string
+	Harness string
+	Payload string
+}
+
+type FleetLaunchRequest struct {
+	SessionID     string
+	ParentID      string
+	Mode          string
+	RequestHash   string
+	Payload       string
+	DispatchState string
+}
+
+type FleetSupervisionInbox struct {
+	ID             string
+	NodeID         string
+	SessionID      string
+	Kind           string
+	Payload        string
+	ReceivedAt     string
+	AcknowledgedAt string
+	LastError      string
+}
+
 type ManagedHarnessRelease struct {
 	Harness   string
 	Release   string

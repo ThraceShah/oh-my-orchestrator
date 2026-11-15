@@ -150,7 +150,7 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 	ctx := req.Context()
 	var open terminalClientMessage
 	if err := readClient(ctx, conn, &open); err != nil || open.Type != "open" || open.SessionID == "" {
@@ -203,7 +203,7 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		case <-ctx.Done():
 			return
 		case err := <-errCh:
-			if err != nil && err != io.EOF {
+			if err != nil && !errors.Is(err, io.EOF) {
 				_ = writeClient(ctx, conn, terminalClientMessage{Type: "error", Error: err.Error()})
 			}
 			return
@@ -244,8 +244,6 @@ func newStreamID() string {
 	return hex.EncodeToString(raw[:])
 }
 
-// OpenSessionTerminal attaches the terminal the worker's own engine already
-// started for the session. It does not launch an agent.
 // LocalTerminal is the control plane's own terminal source. Fleet handles
 // are relayed; every other handle stays on the local runtime.
 type LocalTerminal interface {
@@ -262,6 +260,7 @@ type MuxSource struct {
 	Store *Store
 }
 
+// IsAlive observes the owner link without treating a disconnection as death.
 func (m MuxSource) IsAlive(ctx context.Context, handle ports.RuntimeHandle) (bool, error) {
 	sessionID, ok := sessionFromTerminalHandle(handle.ID)
 	if !ok {
@@ -286,6 +285,7 @@ func (m MuxSource) IsAlive(ctx context.Context, handle ports.RuntimeHandle) (boo
 	return placement.State == PlacementRunning || placement.State == PlacementStarting, nil
 }
 
+// Attach opens the existing local or worker-owned session terminal.
 func (m MuxSource) Attach(ctx context.Context, handle ports.RuntimeHandle, rows, cols uint16) (ports.Stream, error) {
 	sessionID, ok := sessionFromTerminalHandle(handle.ID)
 	if !ok {
@@ -370,7 +370,7 @@ func (s *muxStream) Close() error {
 }
 
 func copyTerminal(replies <-chan TerminalMessage, out *io.PipeWriter) {
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 	for msg := range replies {
 		switch msg.Op {
 		case "data":
@@ -392,6 +392,8 @@ func sessionFromTerminalHandle(handle string) (string, bool) {
 	return sessionID, ok && sessionID != ""
 }
 
+// OpenSessionTerminal attaches the terminal the worker engine already started;
+// it never launches another agent.
 func OpenSessionTerminal(ctx context.Context, handleOf func(context.Context, string) (string, error), attach ports.Attacher, sessionID string, cols, rows uint16) (ports.Stream, error) {
 	if handleOf == nil || attach == nil {
 		return nil, fmt.Errorf("session %s has no terminal", sessionID)

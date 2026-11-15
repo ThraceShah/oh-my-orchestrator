@@ -41,6 +41,7 @@ import { agentLabel, AGENT_OPTIONS, type AgentId } from "../../../lib/agent-opti
 import { apiErrorMessage } from "../../../lib/api-client";
 import { captureRendererEvent } from "../../../lib/telemetry";
 import { aoBridge } from "../../../lib/bridge";
+import { isPrivateWeb } from "../../../lib/private-web";
 import { clientForSessionHost, labelForHost } from "../../../lib/host-clients";
 import { LOCAL_HOST } from "../../../lib/hosts";
 import type { HarnessDiagnosticsRequest } from "../../../stores/ui-store";
@@ -390,7 +391,7 @@ export function LocalHarnessContent({ focusAgentId, hostId, search, onDetailChan
 	const startAuthRef = useRef<(agentId: AgentId) => Promise<boolean>>(async () => false);
 	const autoLoginHandledRef = useRef(false);
 	useEffect(() => {
-		if (!startLogin || autoLoginHandledRef.current || !targetAgentId) return;
+		if (isPrivateWeb() || !startLogin || autoLoginHandledRef.current || !targetAgentId) return;
 		if (agents.isPending || authPlans.isPending) return;
 		autoLoginHandledRef.current = true;
 		const plan = agentAuthPlans.get(targetAgentId);
@@ -852,7 +853,7 @@ export function LocalHarnessContent({ focusAgentId, hostId, search, onDetailChan
 
 	const selectedDetails = selectedAgentId ? describe(selectedAgentId) : null;
 	// Import reads this computer's chat files, so other hosts have no Import tab.
-	const importable = !hostId && selectedDetails !== null && IMPORTABLE_AGENTS.has(selectedDetails.agentId);
+	const importable = !isPrivateWeb() && !hostId && selectedDetails !== null && IMPORTABLE_AGENTS.has(selectedDetails.agentId);
 	const detailsOpen = Boolean(selectedDetails);
 	// The list and the open page each scroll on their own, so the layout always
 	// fills the Settings body and the body itself never scrolls. Its scrolling is
@@ -907,7 +908,10 @@ export function LocalHarnessContent({ focusAgentId, hostId, search, onDetailChan
 								<span id={statusId} className="sr-only">{details.statusLabel}</span>
 								{/* Not-installed harnesses stay in place but recede. */}
 								<AgentAvatar className={cn("shrink-0", split ? "size-5" : "size-6", !details.isInstalled && "opacity-45 grayscale")} decorative provider={agentId} />
-								<span className={cn("min-w-0 flex-1 truncate text-sm", details.isInstalled || selected ? "text-settings-label" : "text-settings-muted")}>{agentLabel(agentId)}</span>
+								<span className="min-w-0 flex-1">
+									<span className={cn("block truncate text-sm", details.isInstalled || selected ? "text-settings-label" : "text-settings-muted")}>{agentLabel(agentId)}</span>
+									{isPrivateWeb() ? <span className="block truncate text-xs text-settings-muted">{details.statusLabel}</span> : null}
+								</span>
 								{/* One status slot: progress replaces the update icon while an install, update or login runs. */}
 								{/* AO Cloud's side shares it: one mark per harness, whichever places it covers. */}
 								{details.busy || cloudSide?.pending ? <span role="status" className="flex size-4 shrink-0 items-center justify-center"><LoaderCircle className="size-4 animate-spin text-settings-muted" aria-hidden="true" /><span className="sr-only">{details.busy ? details.progressLabel : t("settings.harness.updating")}</span></span>

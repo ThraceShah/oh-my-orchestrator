@@ -6,6 +6,7 @@ import { useCloudGate } from "../../hooks/useCloudGate";
 import { useConnectedHosts } from "../../hooks/useHostConnection";
 import { labelForHost } from "../../lib/host-clients";
 import { LOCAL_HOST } from "../../lib/hosts";
+import { isPrivateWeb } from "../../lib/private-web";
 import type { HarnessDiagnosticsRequest } from "../../stores/ui-store";
 import { CloudHarnessContent } from "./harness/CloudHarnessContent";
 import { LocalHarnessContent } from "./harness/LocalHarnessContent";
@@ -60,7 +61,8 @@ export function HarnessSettingsSection({
 			</RadioGroup.Root> : null}
 		</div>) : null}
 	>
-		{showToolbar && !cloudView && (connected.length > 0 || remoteOffline) ? <SettingsOptionMenu
+		{isPrivateWeb() ? <p className="pb-3 text-xs text-muted-foreground">{t("settings.harness.privateServiceHost", { defaultValue: "Agents on the service host. Install and authorize agents on that machine; this page shows their reported readiness." })}</p> : null}
+		{showToolbar && !cloudView && !isPrivateWeb() && (connected.length > 0 || remoteOffline) ? <SettingsOptionMenu
 				aria-label={t("remote.host")}
 				value={selectedHostId}
 				options={[{ value: LOCAL_HOST, label: t("settings.harness.thisComputer") }, ...connected.map((id) => ({ value: id, label: labelForHost(id) ?? id })), ...(remoteOffline ? [{ value: selectedHostId, label: t("remote.hostLabel", { hostId: selectedHostId }) }] : [])]}

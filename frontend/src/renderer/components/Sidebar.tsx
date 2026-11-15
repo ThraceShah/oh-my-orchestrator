@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useProjectAvatars } from "../hooks/useProjectAvatars";
 import { FleetControls } from "./FleetControls";
+import { isPrivateWeb } from "../lib/private-web";
 import { paidPlanBadge, useCloudBilling } from "../hooks/useCloudBilling";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -1176,7 +1177,7 @@ export const Sidebar = memo(function Sidebar({
 				) : null}
 				<SidebarMenu className="mb-3 gap-0.5 group-data-[collapsible=icon]:gap-1">
 					{import.meta.env.VITE_AO_WEB === "1" && <FleetControls />}
-					<SidebarMenuItem>
+					{!isPrivateWeb() && <SidebarMenuItem>
 						<SidebarTopNavRow
 							active={selection.isAutomations}
 							icon={<CalendarClock aria-hidden="true" />}
@@ -1184,7 +1185,7 @@ export const Sidebar = memo(function Sidebar({
 							onClick={selection.goAutomations}
 							tooltip={isCollapsed ? t("automations.title") : undefined}
 						/>
-					</SidebarMenuItem>
+					</SidebarMenuItem>}
 					<SidebarMenuItem>
 						<SidebarTopNavRow
 							active={selection.isArtifacts}
@@ -1365,7 +1366,7 @@ export const Sidebar = memo(function Sidebar({
 								) : null}
 							</AnimatedSectionBody>
 						) : null}
-						{!workspaceError && standaloneWorkspace ? (
+						{!isPrivateWeb() && !workspaceError && standaloneWorkspace ? (
 							<ScratchpadSection
 								workspace={standaloneWorkspace}
 								selection={selection}
@@ -1466,9 +1467,9 @@ export const Sidebar = memo(function Sidebar({
 						status={updateStatus}
 						tabIndex={isCollapsed ? 0 : -1}
 					/>
-					<CloudSignInRailButton tabIndex={isCollapsed ? 0 : -1} />
-					<CloudAccountRailButton tabIndex={isCollapsed ? 0 : -1} />
-					<Tooltip>
+					{!isPrivateWeb() && <CloudSignInRailButton tabIndex={isCollapsed ? 0 : -1} />}
+					{!isPrivateWeb() && <CloudAccountRailButton tabIndex={isCollapsed ? 0 : -1} />}
+					{!isPrivateWeb() && <Tooltip>
 						<TooltipTrigger asChild>
 							<Pressable
 								aria-label={t("settings.connectMobile")}
@@ -1484,7 +1485,7 @@ export const Sidebar = memo(function Sidebar({
 							</Pressable>
 						</TooltipTrigger>
 						<TooltipContent side="right">{t("settings.connectMobile")}</TooltipContent>
-					</Tooltip>
+					</Tooltip>}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Pressable
@@ -1771,6 +1772,11 @@ const ProjectItem = memo(function ProjectItem({
 			selection.goSession(workspace.id, orchestrator.id);
 			return;
 		}
+		// Private web opens the coordinator setup/chat flow; it never creates a worker.
+		if (isPrivateWeb()) {
+			requestNewTask(workspace.id, workspace.hostId);
+			return;
+		}
 		// A guest cannot start an orchestrator in someone else's project.
 		if (workspace.shared) return;
 		// A cloud project has no local orchestrator-agent config, so the settings
@@ -1866,20 +1872,20 @@ const ProjectItem = memo(function ProjectItem({
 		// Archive button and Cmd+K's Open archive are.
 		const archivedCount = isStandalone ? 0 : workerSessions(workspace.sessions).filter(isArchivedSession).length;
 		return [
-			{
-				kind: "item",
+			...(!isPrivateWeb() ? [{
+				kind: "item" as const,
 				id: "new-task",
 				icon: <Plus aria-hidden="true" />,
 				label: t("shell.newTask"),
 				disabled: isProjectRestarting,
 				onSelect: () => requestNewTask(workspace.id, workspace.hostId),
-			},
+			}] : []),
 			...(!isStandalone && (!workspace.shared || orchestrator)
 				? [{
 					kind: "item" as const,
 					id: "orchestrator",
 					icon: <OrchestratorIcon aria-hidden="true" />,
-					label: orchestrator ? t("shell.openOrchestrator") : t("shell.spawnOrchestratorLower"),
+					label: isPrivateWeb() ? t("shell.openCoordinator", { defaultValue: "Open coordinator" }) : orchestrator ? t("shell.openOrchestrator") : t("shell.spawnOrchestratorLower"),
 					disabled: isSpawning || isProjectProvisioning || isProjectRestarting,
 					onSelect: () => void openOrchestrator(),
 				}]
@@ -2157,7 +2163,9 @@ const ProjectItem = memo(function ProjectItem({
 														variant="quiet"
 														aria-current={orchestratorActive ? "page" : undefined}
 														aria-label={orchestratorReplyLabel(
-															orchestrator
+															isPrivateWeb()
+																? t("shell.talkToProjectCoordinator", { defaultValue: "Talk to coordinator for {{name}}", name: nameWithHost })
+																: orchestrator
 																? t("shell.openProjectOrchestrator", {
 																name: nameWithHost,
 																	})
@@ -2185,7 +2193,9 @@ const ProjectItem = memo(function ProjectItem({
 														? t("shell.restarting")
 														: isSpawning
 														? t("shell.spawning")
-														: orchestrator
+														: isPrivateWeb()
+															? t("shell.openCoordinator", { defaultValue: "Open coordinator" })
+															: orchestrator
 															? orchestratorReplyLabel(t("shell.orchestrator"), orchestratorReply, t)
 															: t("shell.spawnOrchestratorLower")}
 											</TooltipContent>
@@ -3171,7 +3181,8 @@ function FooterAccountRow({
 	tabIndex: number;
 }) {
 	const { t } = useTranslation();
-	const { configured } = useCloudSession();
+	const { configured: accountConfigured } = useCloudSession();
+	const configured = !isPrivateWeb() && accountConfigured;
 
 	return (
 		<div className={FOOTER_BOTTOM_ROW_CLASS}>
@@ -3197,7 +3208,7 @@ function FooterAccountRow({
 					</Pressable>
 				)}
 			</div>
-			<FooterMobileMenu onConnectMobile={onConnectMobile} tabIndex={tabIndex} />
+			{!isPrivateWeb() && <FooterMobileMenu onConnectMobile={onConnectMobile} tabIndex={tabIndex} />}
 			{configured ? (
 				<Tooltip>
 					<TooltipTrigger asChild>
@@ -4065,7 +4076,7 @@ function CreateProjectButton({
 					setHostId(undefined);
 				} else await onCreateProject(input);
 			}}
-			onCreateStandaloneAgent={() => requestNewTask(STANDALONE_WORKSPACE_ID, hostId)}
+			onCreateStandaloneAgent={isPrivateWeb() ? undefined : () => requestNewTask(STANDALONE_WORKSPACE_ID, hostId)}
 			onInitializeProject={(path) => hostId ? onInitializeRemoteProject(hostId, path) : onInitializeProject(path)}
 			onOpenExistingProject={onOpenExistingProject}
 			openSignal={createProjectNonce}

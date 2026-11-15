@@ -425,6 +425,23 @@ func (m *Service) Add(ctx context.Context, in AddInput) (Project, error) {
 		})
 	}
 	row.RepoOriginURL = originURL
+	if originURL == "" && (row.Config.DefaultBranch == "" || row.Config.DefaultBranch == domain.DefaultBranchAuto) {
+		remotes, err := gitOutput(ctx, path, "remote")
+		if err != nil {
+			return Project{}, apierr.Invalid("DEFAULT_BRANCH_UNRESOLVED", "Could not inspect this project's Git remotes. Choose an explicit base branch before adding it.", nil)
+		}
+		if strings.TrimSpace(remotes) == "" {
+			// Registering a committed, local-only project is the one-time choice of
+			// its base branch. Persist it so later checkout changes cannot silently
+			// change the branch used by worker worktrees. Remote auto resolution is
+			// unchanged and never consults the active checkout.
+			branch, err := gitOutput(ctx, path, "symbolic-ref", "--quiet", "--short", "HEAD")
+			if err != nil || strings.TrimSpace(branch) == "" {
+				return Project{}, apierr.Invalid("DEFAULT_BRANCH_UNRESOLVED", "This local repository has no checked-out branch. Check out a branch or configure an explicit base branch before adding it.", nil)
+			}
+			row.Config.DefaultBranch = strings.TrimSpace(branch)
+		}
+	}
 	if err := row.Config.ValidateCanonicalRepository(row.RepoOriginURL); err != nil {
 		return Project{}, apierr.Invalid("INVALID_PROJECT_CONFIG", err.Error(), nil)
 	}

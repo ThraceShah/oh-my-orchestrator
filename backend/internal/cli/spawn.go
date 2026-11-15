@@ -167,8 +167,14 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 			}
 
 			if !opts.skipAgentCheck {
-				if err := ctx.preflightSpawnAgentAuth(cmd.Context(), cmd, opts.harness); err != nil {
+				remote, err := ctx.fleetWorkerSpawn(cmd.Context(), opts.kind, opts.node, opts.platform)
+				if err != nil {
 					return err
+				}
+				if !remote {
+					if err := ctx.preflightSpawnAgentAuth(cmd.Context(), cmd, opts.harness); err != nil {
+						return err
+					}
 				}
 			}
 			claimRef := ""
@@ -269,7 +275,7 @@ func newSpawnCommand(ctx *commandContext) *cobra.Command {
 	f.StringVar(&opts.claimPR, "claim-pr", "", "Claim PR ownership metadata only for the spawned session; does not check out the PR branch")
 	f.BoolVar(&opts.noTakeover, "no-takeover", false, "Refuse if another active session owns the claimed PR (requires --claim-pr)")
 	f.BoolVar(&opts.skipAgentCheck, "skip-agent-check", false, "Skip CLI readiness warnings (the daemon still validates launch readiness)")
-	f.StringVar(&opts.node, "node", "", "Fleet node that runs this session; omit to run it on this daemon")
+	f.StringVar(&opts.node, "node", "", "Worker node for this session; omit for fleet scheduling (or local execution outside fleet)")
 	f.StringVar(&opts.platform, "platform", "", "OS family required when the control plane chooses a fleet node")
 	return cmd
 }

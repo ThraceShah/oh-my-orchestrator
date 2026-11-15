@@ -55,6 +55,7 @@ import {
 import { ArrowUp, CornerUpRight, Loader2, Mic, Paperclip, Play, Plus, Square, X } from "@/components/app-icons";
 import { isMacPlatform } from "../../lib/platform";
 import { useDictation } from "./useDictation";
+import { isPrivateWeb } from "../../lib/private-web";
 import { DictationMeter } from "./DictationMeter";
 import { OptionMenu, OptionMenuContent, OptionMenuLabel, OptionMenuTrigger } from "../ui/option-menu";
 import { ComposerMenuRow } from "./TurnSettingsBar";
@@ -524,7 +525,7 @@ export const ChatComposer = memo(function ChatComposer({
 	});
 	const dictating = dictation.phase !== "idle";
 	// Dictation is in preview: macOS only, behind Developer mode.
-	const canDictate = useUiStore((state) => state.developerMode) && isMacPlatform();
+	const canDictate = useUiStore((state) => state.developerMode) && isMacPlatform() && !isPrivateWeb();
 	const filePicker = useRef<HTMLInputElement>(null);
 	const addMenuTrigger = useRef<HTMLButtonElement>(null);
 	const [addMenuBox, setAddMenuBox] = useState<{ lift: number; shift: number; width: number }>();

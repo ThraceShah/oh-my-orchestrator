@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/httpd/apierr"
 )
 
 // IdentityFunc reports the network identity of a dialing peer. It is optional.
@@ -23,14 +25,24 @@ type IdentityFunc func(r *http.Request) (string, error)
 // Listener accepts worker dial-ins on an address the operator configured.
 // An empty address means the fleet listener is off.
 type Listener struct {
-	Addr     string
-	Store    *Store
-	Hub      *Hub
-	Identity IdentityFunc
-	Log      *slog.Logger
+	Addr        string
+	Store       *Store
+	Hub         *Hub
+	Identity    IdentityFunc
+	Log         *slog.Logger
+	OnConnect   func(context.Context, string) error
+	OnHeartbeat func(context.Context, string) error
 
-	mu    sync.RWMutex
-	bound string
+	mu        sync.RWMutex
+	bound     string
+	onControl func(context.Context, Event) json.RawMessage
+}
+
+// SetControlHandler installs authenticated reverse RPC before daemon APIs serve.
+func (l *Listener) SetControlHandler(fn func(context.Context, Event) json.RawMessage) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.onControl = fn
 }
 
 // Address is the address actually bound. It is empty until Run has listened,
@@ -41,6 +53,7 @@ func (l *Listener) Address() string {
 	return l.bound
 }
 
+// Run accepts authenticated worker dial-ins until ctx is cancelled.
 func (l *Listener) Run(ctx context.Context) error {
 	addr := strings.TrimSpace(l.Addr)
 	if addr == "" {
@@ -53,7 +66,7 @@ func (l *Listener) Run(ctx context.Context) error {
 	l.mu.Lock()
 	l.bound = ln.Addr().String()
 	l.mu.Unlock()
-	srv := &http.Server{Handler: http.HandlerFunc(l.serve)}
+	srv := &http.Server{Handler: http.HandlerFunc(l.serve), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 	select {
@@ -80,7 +93,7 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 		l.logf("fleet websocket accept failed", "err", err)
 		return
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 	var hello Frame
@@ -117,6 +130,11 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 	if err := link.write(ctx, Frame{Type: FrameAccepted, NodeID: node.ID}); err != nil {
 		return
 	}
+	if l.OnConnect != nil {
+		if err := l.OnConnect(ctx, node.ID); err != nil {
+			l.logf("fleet pending launches wait for reconnect", "node", node.ID, "err", err)
+		}
+	}
 	for {
 		var frame Frame
 		if err := readFrame(ctx, conn, &frame); err != nil {
@@ -127,10 +145,31 @@ func (l *Listener) serve(w http.ResponseWriter, r *http.Request) {
 			if err := l.Store.Heartbeat(ctx, node.ID, frame.Caps); err != nil {
 				return
 			}
+			if l.OnHeartbeat != nil {
+				if err := l.OnHeartbeat(ctx, node.ID); err != nil {
+					l.logf("fleet pending launch retry failed", "node", node.ID, "err", err)
+				}
+			}
 		case FrameEvent:
 			if frame.Event != nil {
 				frame.Event.NodeID = node.ID
-				l.Hub.Publish(*frame.Event)
+				if frame.Event.Kind == EventControlRequest {
+					l.mu.RLock()
+					handler := l.onControl
+					l.mu.RUnlock()
+					event := *frame.Event
+					// The handler may issue downstream RPC on this socket; keep
+					// reading its reply instead of deadlocking the connection.
+					go func() {
+						reply := EncodeSupervisionReply(nil, apierr.New(apierr.KindUnavailable, "FLEET_CONTROL_UNAVAILABLE", "Control supervision is not ready", nil))
+						if handler != nil {
+							reply = handler(ctx, event)
+						}
+						_ = link.Send(ctx, Command{ID: event.CommandID, Kind: CommandControlResponse, Payload: reply})
+					}()
+				} else {
+					l.Hub.Publish(*frame.Event)
+				}
 			}
 		case FrameTerminal:
 			if frame.Terminal != nil {

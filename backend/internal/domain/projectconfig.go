@@ -90,12 +90,12 @@ type ProjectConfig struct {
 	// Read at spawn, when the worker prompt is built.
 	WorkersRequestReview bool `json:"workersRequestReview,omitempty"`
 
-	// OrchestratorHomeNode is the fleet node that owns this project's long-lived
-	// orchestrator checkout. It is required together with OrchestratorCheckout
-	// when an orchestrator session is placed by the fleet. Neither has a default.
+	// OrchestratorHomeNode is retained to recognize legacy remote-coordinator
+	// configuration. A service-host coordinator requires explicit migration of
+	// that old setting rather than silently opening a path on another machine.
 	OrchestratorHomeNode string `json:"orchestratorHomeNode,omitempty"`
-	// OrchestratorCheckout is the absolute path of that checkout on the home
-	// node. The control plane does not create it and does not store a copy.
+	// OrchestratorCheckout optionally selects an existing local coordinator
+	// directory. Empty uses the registered project directory in fleet mode.
 	OrchestratorCheckout string `json:"orchestratorCheckout,omitempty"`
 }
 
@@ -288,8 +288,11 @@ func (c ProjectConfig) Validate() error {
 	}
 	home := strings.TrimSpace(c.OrchestratorHomeNode)
 	checkout := strings.TrimSpace(c.OrchestratorCheckout)
-	if (home == "") != (checkout == "") {
-		return fmt.Errorf("orchestratorHomeNode and orchestratorCheckout must be set together")
+	if home != "" && checkout == "" {
+		return fmt.Errorf("legacy orchestratorHomeNode requires orchestratorCheckout")
+	}
+	if home == "" && checkout != "" && !filepath.IsAbs(checkout) {
+		return fmt.Errorf("orchestratorCheckout must be an absolute local path")
 	}
 	return nil
 }

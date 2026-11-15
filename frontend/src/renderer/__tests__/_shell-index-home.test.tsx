@@ -123,17 +123,18 @@ beforeEach(() => {
 });
 
 describe("shell index route", () => {
-	it("offers standalone agents and explains unavailable folder actions in live web mode", () => {
+	it("offers server folders and a project coordinator instead of standalone workers in live web mode", () => {
 		vi.stubEnv("VITE_AO_WEB", "1");
 		routeMocks.cloudEnabled = true;
 		try {
 			render(<HomePage />);
-			expect(screen.getByRole("button", { name: "Open a local folder" })).toBeDisabled();
-			expect(screen.getByRole("button", { name: "Open a workspace" })).toBeDisabled();
+			expect(screen.getByRole("button", { name: "Open a server folder" })).toBeEnabled();
+			expect(screen.getByRole("button", { name: "Open a server workspace" })).toBeEnabled();
 			expect(screen.queryByRole("button", { name: "Clone to the cloud" })).not.toBeInTheDocument();
-			expect(screen.getByText(/Cloned repositories and standalone agents run on the server/)).toBeVisible();
-			fireEvent.click(screen.getByRole("button", { name: "Start a standalone agent" }));
-			expect(useUiStore.getState().newTaskRequest?.projectId).toBe(STANDALONE_WORKSPACE_ID);
+			expect(screen.queryByRole("button", { name: "Start a standalone agent" })).not.toBeInTheDocument();
+			fireEvent.click(screen.getByRole("button", { name: "Open a server folder" }));
+			expect(routeMocks.createProjectFlowProps?.sourceSignal?.source).toBe("local");
+			expect(screen.getByText(/coordinator assigns tasks to the available workers/)).toBeVisible();
 		} finally {
 			vi.unstubAllEnvs();
 		}

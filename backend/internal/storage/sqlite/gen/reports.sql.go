@@ -11,6 +11,34 @@ import (
 	"time"
 )
 
+const acknowledgeFleetReport = `-- name: AcknowledgeFleetReport :execrows
+UPDATE reports
+SET delivery_state = 'acknowledged', claim_token = ?1,
+    claimed_at = ?2, acknowledged_at = ?2
+WHERE id = ?3 AND session_id = ?4
+  AND delivery_state <> 'acknowledged'
+`
+
+type AcknowledgeFleetReportParams struct {
+	ClaimToken     string
+	AcknowledgedAt sql.NullTime
+	ID             string
+	SessionID      string
+}
+
+func (q *Queries) AcknowledgeFleetReport(ctx context.Context, arg AcknowledgeFleetReportParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, acknowledgeFleetReport,
+		arg.ClaimToken,
+		arg.AcknowledgedAt,
+		arg.ID,
+		arg.SessionID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const acknowledgeReport = `-- name: AcknowledgeReport :one
 UPDATE reports
 SET delivery_state = 'acknowledged', acknowledged_at = ?1

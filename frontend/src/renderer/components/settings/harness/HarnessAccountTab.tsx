@@ -6,6 +6,7 @@ import { advisoryInUse, isWaitingForIdleJob, versionLabel, type HarnessInUse, ty
 import { IdleUpdateStatus } from "./HarnessSessionsDialog";
 import type { TerminalSessionState } from "../../../hooks/useTerminalSession";
 import { aoBridge } from "../../../lib/bridge";
+import { isPrivateWeb } from "../../../lib/private-web";
 import { labelForHost } from "../../../lib/host-clients";
 import { MiddleTruncatedText } from "../../MiddleTruncatedText";
 import { Button } from "../../ui/button";
@@ -56,7 +57,7 @@ export function HarnessAccountTab({ details, hostId, cloud, authWorkflowActive, 
 	const blockedBy = advisoryInUse(details.advisory);
 	const updateBlocked = Boolean(blockedBy);
 	// Subscription accounts are for local Claude Code and Codex.
-	const accountProvider = !hostId && isInstalled ? agentAccountProviderFor(details.agentId) : null;
+	const accountProvider = !isPrivateWeb() && !hostId && isInstalled ? agentAccountProviderFor(details.agentId) : null;
 	// The running job's steps stay in the Installation card until it finishes on Done.
 	const justFinished = useInstallJustFinished(job);
 	const stage = justFinished ? "done" : installStage(job);
@@ -76,7 +77,7 @@ export function HarnessAccountTab({ details, hostId, cloud, authWorkflowActive, 
 		{rowAuthWorkflow && !["running", "verifying", "closing"].includes(rowAuthWorkflow.phase) ? null : <LoaderCircle className="animate-spin" aria-hidden="true" />}
 		{rowAuthWorkflow?.phase === "verifying" ? t(rowAuthWorkflow.action === "logout" ? "settings.harness.checkingLogout" : "settings.harness.checkingLogin") : rowAuthWorkflow?.action === "logout" ? t("settings.harness.logout") : details.isSetupAction ? t("settings.harness.setup") : t("settings.harness.login")}
 	</Button>;
-	const installationAction = details.busy ? progressAction
+	const installationAction = isPrivateWeb() ? null : details.busy ? progressAction
 		: isInstalled && cloud?.pending ? progress(t("settings.harness.updating"))
 		: authBusy ? null
 		: !isInstalled ? (
@@ -106,7 +107,7 @@ export function HarnessAccountTab({ details, hostId, cloud, authWorkflowActive, 
 		: localUpdate ? updateButton
 		: details.showUpdate && !details.needsLogin && plan?.documentationUrl ? <Button type="button" data-harness-primary-action="" size="default" variant="secondary" className="min-w-20" onClick={() => void aoBridge.app.openExternal(plan.documentationUrl)}>{t("settings.harness.manualUpdate")}</Button>
 		: null;
-	const accountAction = authBusy ? authBusyAction
+	const accountAction = isPrivateWeb() ? null : authBusy ? authBusyAction
 		: details.busy ? null
 		: details.needsLogin || details.showSetup ? <Button type="button" data-harness-primary-action="" data-terminal-focus-handoff="true" size="default" className="min-w-20" disabled={!authPlan?.available || authWorkflowActive} onClick={onLogin}>
 			{t(details.isDocumentationAction ? "settings.harness.viewDocumentation" : details.isSetupAction ? "settings.harness.setup" : details.authState?.error ? "settings.harness.retryLogin" : "settings.harness.login")}
@@ -145,7 +146,7 @@ export function HarnessAccountTab({ details, hostId, cloud, authWorkflowActive, 
 				description={authBusy ? undefined : details.accountDescription}
 			>
 				{accountAction}
-				{isInstalled && authPlan?.logoutCommand && authPlan.available && details.authStatus !== "unauthorized" ? <Button type="button" size="sm" variant="secondary" disabled={details.busy || authWorkflowActive} onClick={onLogout}><LogOut aria-hidden="true" />{t("settings.harness.logout")}</Button> : null}
+				{!isPrivateWeb() && isInstalled && authPlan?.logoutCommand && authPlan.available && details.authStatus !== "unauthorized" ? <Button type="button" size="sm" variant="secondary" disabled={details.busy || authWorkflowActive} onClick={onLogout}><LogOut aria-hidden="true" />{t("settings.harness.logout")}</Button> : null}
 			</HarnessDetailRow>}
 			{loginPanel}
 		</HarnessDetailGroup> : null}

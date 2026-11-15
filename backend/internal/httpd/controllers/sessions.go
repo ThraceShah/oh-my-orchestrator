@@ -2660,6 +2660,7 @@ func (c *SessionsController) spawnOrchestrator(w http.ResponseWriter, r *http.Re
 		apispec.NotImplemented(w, r, "POST", "/api/v1/orchestrators")
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxSpawnBodyBytes)
 	var in SpawnOrchestratorRequest
 	if err := decodeJSON(r, &in); err != nil {
 		envelope.WriteAPIError(w, r, http.StatusBadRequest, "bad_request", "INVALID_JSON", "Invalid JSON body", nil)
@@ -2679,13 +2680,51 @@ func (c *SessionsController) spawnOrchestrator(w http.ResponseWriter, r *http.Re
 		envelope.WriteAPIError(w, r, http.StatusBadRequest, "bad_request", "INVALID_APPROVAL_MODE", "approvalMode is invalid", nil)
 		return
 	}
-	sess, err := c.Svc.SpawnOrchestrator(r.Context(), in.ProjectID, in.Clean, in.Mode, in.ApprovalMode)
+	if !validClientRequestID(in.ClientRequestID) || len(in.Brief) > maxPromptLen || utf8.RuneCountInString(strings.TrimSpace(in.Model)) > maxModelLen {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "validation", "INVALID_COORDINATOR_REQUEST", "Invalid request key, model, or message length", nil)
+		return
+	}
+	if in.Agent != "" && !in.Agent.IsKnown() {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "validation", "UNKNOWN_HARNESS", "Unknown coordinator agent", nil)
+		return
+	}
+	attachments, attachErr := decodeSpawnAttachments(in.Attachments)
+	if attachErr != nil {
+		envelope.WriteAPIError(w, r, http.StatusBadRequest, "validation", attachErr.code, attachErr.message, nil)
+		return
+	}
+	var sess domain.Session
+	var err error
+	if starter, ok := c.Svc.(interface {
+		StartCoordinator(context.Context, sessionsvc.CoordinatorStartInput) (domain.Session, error)
+	}); ok {
+		keyless := in
+		keyless.ClientRequestID = ""
+		keyless.Attachments = nil
+		hash := ""
+		if in.ClientRequestID != "" {
+			hash = clientRequestFingerprint("coordinator", keyless, attachments)
+		}
+		sess, err = starter.StartCoordinator(r.Context(), sessionsvc.CoordinatorStartInput{
+			ProjectID: in.ProjectID, Clean: in.Clean, Harness: in.Agent,
+			Model: domain.SanitizeControlChars(strings.TrimSpace(in.Model)), Effort: sanitizedOptionalString(in.Effort),
+			Mode: in.Mode, Approval: in.ApprovalMode, Brief: domain.SanitizeControlChars(in.Brief), Attachments: attachments,
+			ClientRequestID: in.ClientRequestID, ClientRequestHash: hash,
+		})
+	} else if in.Agent != "" || in.Model != "" || in.Effort != nil || in.Brief != "" || len(in.Attachments) > 0 || in.ClientRequestID != "" {
+		apispec.NotImplemented(w, r, "POST", "/api/v1/orchestrators")
+		return
+	} else {
+		sess, err = c.Svc.SpawnOrchestrator(r.Context(), in.ProjectID, in.Clean, in.Mode, in.ApprovalMode)
+	}
 	if err != nil {
 		envelope.WriteErrorWithCode(w, r, err, "ORCHESTRATOR_SPAWN_FAILED", "Unable to start orchestrator")
 		return
 	}
+	view := sessionView(r, sess)
 	envelope.WriteJSON(w, http.StatusCreated, SpawnOrchestratorResponse{
 		Orchestrator: OrchestratorResponse{ID: sess.ID, ProjectID: sess.ProjectID},
+		Session:      &view,
 	})
 }
 

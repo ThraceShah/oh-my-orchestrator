@@ -22,6 +22,7 @@ type Dialer struct {
 	OnTerminal func(context.Context, TerminalMessage, func(TerminalMessage) error)
 	Interval   time.Duration
 	notify     chan Event
+	control    *controlCalls
 }
 
 // Notify queues an event for the control plane. It does not block, and it
@@ -42,9 +43,11 @@ func (d *Dialer) Notify(ev Event) {
 func (d *Dialer) StartNotifications() {
 	if d != nil && d.notify == nil {
 		d.notify = make(chan Event, 32)
+		d.control = &controlCalls{pending: make(map[string]chan json.RawMessage)}
 	}
 }
 
+// Run maintains the authenticated worker connection until ctx is cancelled.
 func (d *Dialer) Run(ctx context.Context) error {
 	if d.URL == "" || d.NodeID == "" || d.Token == "" {
 		return errors.New("fleet dialer needs a url, node id, and token")
@@ -75,11 +78,14 @@ func (d *Dialer) Run(ctx context.Context) error {
 }
 
 func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
-	conn, _, err := websocket.Dial(ctx, d.URL, nil)
+	conn, response, err := websocket.Dial(ctx, d.URL, nil)
+	if response != nil && response.Body != nil {
+		_ = response.Body.Close()
+	}
 	if err != nil {
 		return err
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 	writer := &lockedConn{conn: conn}
 	hello, _ := json.Marshal(Hello{NodeID: d.NodeID, Token: d.Token, Identity: d.Identity, Caps: d.capabilities()})
 	if err := writer.write(ctx, Frame{Type: FrameHello, Payload: hello}); err != nil {
@@ -108,6 +114,8 @@ func (d *Dialer) session(ctx context.Context, interval time.Duration) error {
 				d.OnTerminal(ctx, msg, func(out TerminalMessage) error {
 					return writer.write(ctx, Frame{Type: FrameTerminal, Terminal: &out})
 				})
+			case frame.Type == FrameCommand && frame.Command != nil && d.acceptControlResponse(*frame.Command):
+				// The waiting local API request consumes this correlated reply.
 			case frame.Type == FrameCommand && frame.Command != nil && d.Handler != nil:
 				ev := d.Handler(ctx, *frame.Command)
 				ev.NodeID = d.NodeID

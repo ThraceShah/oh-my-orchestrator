@@ -79,6 +79,15 @@ test('preserves upstream sandbox policy and rejects cross-origin mutation', asyn
   assert.equal((await fetch(base + '/api/v1/sandbox')).headers.get('content-security-policy'), 'sandbox');
   assert.equal((await fetch(base + '/api/v1/sessions', {method: 'POST', headers: {origin: 'https://elsewhere.example'}})).status, 403);
 });
+test('requires human work to enter through the coordinator conversation', async () => {
+  for (const path of ['/api/v1/sessions', '/api/v1/orchestrators/delegate', '/api/v1/projects/demo/tasks/prepare', '/api/v1/automations']) {
+    const response = await fetch(base + '/apps/orchestrator' + path, {method: 'POST', headers: {origin: base}});
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.code, 'COORDINATOR_REQUIRED');
+  }
+  const coordinator = await fetch(base + '/api/v1/orchestrators', {method: 'POST', headers: {origin: base}});
+  assert.equal(coordinator.status, 200);
+});
 test('forwards terminal upgrades including data received with the request', async () => {
   const url = new URL(base);
   const socket = net.connect(Number(url.port), url.hostname);

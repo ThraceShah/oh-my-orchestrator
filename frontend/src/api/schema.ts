@@ -1374,6 +1374,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fleet/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List worker presence, load and normalized capabilities without credentials */
+        get: operations["listFleetNodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/nodes/{id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a worker's own model catalog in its project environment */
+        get: operations["getFleetNodeModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/nodes/{id}/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read cached readiness on a worker */
+        get: operations["getFleetNodeReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet/nodes/{id}/readiness/ensure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh normalized readiness on a worker without installing or logging in */
+        post: operations["ensureFleetNodeReadiness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fs/dirs": {
         parameters: {
             query?: never;
@@ -1847,7 +1915,7 @@ export interface paths {
         /** List orchestrator sessions across projects */
         get: operations["listOrchestrators"];
         put?: never;
-        /** Spawn an orchestrator session */
+        /** Ensure the local project coordinator and start its first conversation */
         post: operations["spawnOrchestrator"];
         delete?: never;
         options?: never;
@@ -5898,6 +5966,7 @@ export interface components {
             /** @enum {string} */
             outputType: "none" | "pr" | "artifact" | "pr_artifact";
             ownerNodeId?: string;
+            parentSessionId?: string;
             /** Format: date-time */
             pinnedAt?: null | string;
             placementState?: string;
@@ -6539,6 +6608,37 @@ export interface components {
             /** @description Absolute path of the directory on the daemon host. */
             path: string;
         };
+        FleetAgentCapability: {
+            authentication?: string;
+            /** Format: date-time */
+            checkedAt?: null | string;
+            freshness?: string;
+            harness: string;
+            installation?: string;
+            launchVersion?: number;
+            loggedIn: boolean;
+            reasonCode?: string;
+            /** Format: date-time */
+            reportedAt?: string;
+            supportedModes?: string[];
+            version?: string;
+        };
+        FleetNodeListResponse: {
+            nodes: components["schemas"]["FleetNodeSummary"][];
+        };
+        FleetNodeSummary: {
+            availability: string;
+            capabilities: components["schemas"]["FleetAgentCapability"][];
+            capacity: number;
+            id: string;
+            inUse: number;
+            /** Format: date-time */
+            lastSeenAt?: string;
+            name: string;
+            platforms?: string[];
+            presence: string;
+            role: string;
+        };
         GitHubRepo: {
             clone_url: string;
             default_branch: string;
@@ -6571,6 +6671,7 @@ export interface components {
             /** @enum {string} */
             importKind: "project" | "workspace";
             initialCommitMessage?: string;
+            localOnly?: boolean;
             path: string;
             remoteUrl?: string;
             repositories?: components["schemas"]["GitRepositoryPreparationInput"][];
@@ -6610,6 +6711,7 @@ export interface components {
         ImportValidationInput: {
             /** @enum {string} */
             importKind: "project" | "workspace";
+            localOnly?: boolean;
             path: string;
         };
         ImportValidationResult: {
@@ -8054,15 +8156,22 @@ export interface components {
             text: string;
         };
         SpawnOrchestratorRequest: {
+            agent?: string;
             /** @enum {string} */
             approvalMode?: "default" | "accept-edits" | "auto" | "bypass-permissions";
+            attachments?: components["schemas"]["AttachmentInput"][];
+            brief?: string;
             clean?: boolean;
+            clientRequestId?: string;
+            effort?: null | string;
             /** @enum {string} */
             mode?: "chat" | "tui";
+            model?: string;
             projectId: string;
         };
         SpawnOrchestratorResponse: {
             orchestrator: components["schemas"]["OrchestratorResponse"];
+            session?: components["schemas"]["ControllersSessionView"];
         };
         SpawnSessionRequest: {
             /** @enum {string} */
@@ -13455,6 +13564,281 @@ export interface operations {
             };
         };
     };
+    listFleetNodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FleetNodeListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getFleetNodeModels: {
+        parameters: {
+            query: {
+                agent: string;
+                projectId?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentModelsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getFleetNodeReadiness: {
+        parameters: {
+            query?: {
+                agent?: string;
+                projectId?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReadinessResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    ensureFleetNodeReadiness: {
+        parameters: {
+            query?: {
+                agent?: string;
+                projectId?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReadinessResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     listDirs: {
         parameters: {
             query?: {
@@ -14859,6 +15243,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

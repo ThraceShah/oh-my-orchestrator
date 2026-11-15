@@ -34,6 +34,7 @@ type PlacementService struct {
 	Projects ProjectHomes
 }
 
+// Place records worker ownership and dispatches a complete session launch.
 func (p *PlacementService) Place(ctx context.Context, cfg ports.SpawnConfig) (domain.Session, int, int, error) {
 	if p == nil || p.Fleet == nil {
 		return domain.Session{}, 0, 0, apierr.Invalid("FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane", nil)
@@ -43,6 +44,7 @@ func (p *PlacementService) Place(ctx context.Context, cfg ports.SpawnConfig) (do
 		Harness:  string(cfg.Harness),
 		Platform: cfg.Platform,
 		NodeID:   cfg.NodeID,
+		Mode:     string(cfg.RequestedMode),
 	}
 	if cfg.Kind == "" {
 		req.Kind = string(domain.KindWorker)
@@ -67,13 +69,15 @@ func (p *PlacementService) Place(ctx context.Context, cfg ports.SpawnConfig) (do
 		Prompt:      cfg.Prompt,
 		DisplayName: cfg.DisplayName,
 		ParentID:    string(cfg.ParentSessionID),
+		Launch:      &cfg,
+		RequestHash: cfg.ClientRequestHash,
 	}
 	// The session id is assigned by the worker's own engine today. Until that
 	// engine reports it back, the placement is keyed by the client request so a
 	// retry finds the same decision. A caller without one gets a fresh key.
 	sessionKey := strings.TrimSpace(cfg.ClientRequestID)
 	if sessionKey == "" {
-		sessionKey = "fleet-" + req.Kind + "-" + strings.TrimSpace(cfg.DisplayName)
+		sessionKey = "fleet-" + newStreamID()
 	}
 	req.SessionID = sessionKey
 	spawn.SessionID = sessionKey
@@ -88,12 +92,15 @@ func (p *PlacementService) Place(ctx context.Context, cfg ports.SpawnConfig) (do
 		Harness:     cfg.Harness,
 		DisplayName: cfg.DisplayName,
 		Activity:    domain.Activity{State: domain.ActivityIdle},
+		Mode:        cfg.RequestedMode,
 	}
-	return domain.Session{SessionRecord: record, StatusReadiness: string(decision.State)}, len(cfg.Prompt), 0, nil
+	return domain.Session{SessionRecord: record, StatusReadiness: string(decision.State), OwnerNodeID: decision.NodeID, ParentSessionID: cfg.ParentSessionID, PlacementState: string(decision.State)}, len(cfg.Prompt), 0, nil
 }
 
 func placementError(err error) error {
 	switch {
+	case errors.Is(err, ErrRequestConflict):
+		return apierr.Conflict("CLIENT_REQUEST_CONFLICT", err.Error(), nil)
 	case errors.Is(err, ErrHomeRequired):
 		return apierr.Invalid("FLEET_HOME_REQUIRED", err.Error(), nil)
 	case errors.Is(err, ErrNoNode), errors.Is(err, ErrNodeUnavailable), errors.Is(err, ErrControlExcluded):

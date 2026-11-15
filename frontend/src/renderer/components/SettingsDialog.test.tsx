@@ -559,6 +559,17 @@ describe("SettingsDialog", () => {
 		expect(screen.queryByRole("button", { name: "Diagnostics" })).not.toBeInTheDocument();
 	});
 
+	it("private web hides account and native pages even when the daemon advertises cloud", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			const context = { cloudEnabled: true, diagnostics: false, customCoder: true, selfServeBilling: true, teams: "manage" as const };
+			expect(visibleGlobalSettings(context).map((item) => item.id)).toEqual(["general", "harness", "shortcuts", "help"]);
+			for (const section of ["teams", "billing", "browserProfiles", "computerUse", "coder", "remoteHosts", "mobile", "updates"] as const) {
+				expect(globalSettingsItemsFor(section, context).map((item) => item.id)).toEqual(["general"]);
+			}
+		} finally { vi.unstubAllEnvs(); }
+	});
+
 	describe("offering gates", () => {
 		const pages = (context: { customCoder: boolean; selfServeBilling: boolean; cloudEnabled?: boolean }) =>
 			visibleGlobalSettings({ cloudEnabled: true, diagnostics: false, ...context }).map((item) => item.id);

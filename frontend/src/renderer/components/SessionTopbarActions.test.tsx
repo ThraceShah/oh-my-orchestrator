@@ -271,6 +271,15 @@ describe("optimistic orchestrator topbar", () => {
 });
 
 describe("SessionTopbarActions embedded actions", () => {
+	it("labels the private web header action as opening the project coordinator", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			renderTopbar(orchestrator);
+			expect(screen.getByRole("button", { name: "Open coordinator" })).toHaveTextContent("Open coordinator");
+			expect(screen.queryByRole("button", { name: "New task" })).not.toBeInTheDocument();
+			expect(screen.queryByText("Task")).not.toBeInTheDocument();
+		} finally { vi.unstubAllEnvs(); }
+	});
 	// The branch belongs to detail surfaces, not the top bar: an orchestrator's
 	// actions stay intact (#3874, regressed by the badge #4252 added beside these actions).
 	it("keeps the worktree branch out of the orchestrator actions", () => {

@@ -9,10 +9,12 @@ import (
 // Request is what the scheduler needs to place one session. It carries no
 // host names and no machine-specific defaults.
 type Request struct {
-	SessionID string
-	Kind      string
-	Harness   string
-	Platform  string
+	SessionID         string
+	Kind              string
+	Harness           string
+	Mode              string
+	RequireFullLaunch bool
+	Platform          string
 	// NodeID is an explicit placement. Empty means choose.
 	NodeID string
 	// HomeNode and HomeCheckout pin an orchestrator session. Both are required
@@ -40,9 +42,13 @@ type Decision struct {
 }
 
 var (
-	ErrNoNode          = errors.New("no fleet node matches the session")
+	// ErrNoNode reports that no candidate matches the request.
+	ErrNoNode = errors.New("no fleet node matches the session")
+	// ErrNodeUnavailable describes an explicitly selected worker constraint.
 	ErrNodeUnavailable = errors.New("the requested fleet node cannot take the session")
-	ErrHomeRequired    = errors.New("an orchestrator session needs a project home node and checkout")
+	// ErrHomeRequired reports incomplete legacy orchestrator home configuration.
+	ErrHomeRequired = errors.New("an orchestrator session needs a project home node and checkout")
+	// ErrControlExcluded prevents placing subordinate sessions on the control node.
 	ErrControlExcluded = errors.New("the control node does not run sessions")
 )
 
@@ -128,7 +134,7 @@ func eligible(c Candidate, req Request, allowDemand bool) error {
 	if !allowDemand && n.Availability != AlwaysOn {
 		return fmt.Errorf("%w: on-demand nodes are not chosen automatically", ErrNodeUnavailable)
 	}
-	if n.Presence != PresenceOnline && !(allowDemand && n.Availability == OnDemand) {
+	if n.Presence != PresenceOnline && (!allowDemand || n.Availability != OnDemand) {
 		return fmt.Errorf("%w: node is offline", ErrNodeUnavailable)
 	}
 	if req.Platform != "" && !hasPlatform(n, req.Platform) {
@@ -137,15 +143,42 @@ func eligible(c Candidate, req Request, allowDemand bool) error {
 	if c.InUse >= n.Capacity {
 		return fmt.Errorf("%w: node is at capacity", ErrNodeUnavailable)
 	}
-	return harnessReady(n, req.Harness)
+	if err := harnessReady(n, req.Harness); err != nil {
+		return err
+	}
+	if req.RequireFullLaunch {
+		supported := false
+		for _, capability := range n.Capabilities {
+			if capability.Harness == req.Harness && capability.LaunchVersion >= 1 {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return fmt.Errorf("%w: worker must be upgraded to support complete launch parameters", ErrNodeUnavailable)
+		}
+	}
+	if req.Mode != "" {
+		for _, capability := range n.Capabilities {
+			if capability.Harness == req.Harness && len(capability.SupportedModes) > 0 {
+				for _, mode := range capability.SupportedModes {
+					if mode == req.Mode {
+						return nil
+					}
+				}
+				return fmt.Errorf("%w: harness %s does not support %s", ErrNodeUnavailable, req.Harness, req.Mode)
+			}
+		}
+	}
+	return nil
 }
 
 func harnessReady(n Node, harness string) error {
 	if harness == "" {
 		return nil
 	}
-	for _, cap := range n.Capabilities {
-		if cap.Harness == harness && cap.LoggedIn {
+	for _, capability := range n.Capabilities {
+		if capability.Harness == harness && capabilityCanLaunch(capability) {
 			return nil
 		}
 	}

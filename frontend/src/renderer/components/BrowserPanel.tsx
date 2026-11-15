@@ -96,6 +96,8 @@ import { BrowserDownloadsList } from "./BrowserDownloadsList";
 import { isWebLink, openLinkInSystemBrowser } from "../lib/external-link-policy";
 import { aoBridge } from "../lib/bridge";
 import { isHostLocalWebLink } from "../lib/loopback";
+import { isPrivateWeb } from "../lib/private-web";
+import { BrowserWebFallback } from "./BrowserWebFallback";
 
 // One-click viewport width presets for responsive testing — height is shown
 // for reference but not enforced (only width drives CSS breakpoints, and
@@ -474,14 +476,14 @@ export const BrowserPanelView = memo(function BrowserPanelView({
 	const { beginPicking, cancelPicking, enqueue, error, failPicking, queuedCount, retryQueued, status } =
 		annotationQueue;
 	const hasNativeBrowser = Boolean(window.ao?.browser);
-	const showStaticPreview = !hasNativeBrowser && navState.url !== "";
+	const showBrowserFallback = !hasNativeBrowser && navState.url !== "";
 	// Not on an agent tab: its page is its viewer's picture of the agent's page.
 	const onAgentTab = Boolean(tabs.find((tab) => tab.active)?.remote);
 	const canAnnotate = Boolean(window.ao?.browser && viewId && navState.url && !onAgentTab);
 	// An agent tab's localhost page is the host's: opened here it would be this
 	// computer's own. Before the viewer's first report the tab shows the viewer
 	// itself, an ao-preview-….localhost address, so that is held back too.
-	const agentPageOnHost = onAgentTab && isHostLocalWebLink(navState.url);
+	const agentPageOnHost = (onAgentTab || isPrivateWeb()) && isHostLocalWebLink(navState.url);
 	const canRetryAnnotation = status === "error" && queuedCount > 0;
 	const [devicePreset, setDevicePreset] = useState<string | null>(null);
 	const [customDeviceWidth, setCustomDeviceWidth] = useState("390");
@@ -1482,7 +1484,7 @@ export const BrowserPanelView = memo(function BrowserPanelView({
 						{poppedOut ? <Minimize2 aria-hidden="true" className="size-icon-base" /> : <Maximize2 aria-hidden="true" className="size-icon-base" />}
 					</Button>
 				</BrowserControlTooltip>
-				<DropdownMenu
+				{!isPrivateWeb() && <DropdownMenu
 					onOpenChange={(open) => {
 						setControlsOpen(open);
 						if (!open) setControlsView("root");
@@ -1679,7 +1681,7 @@ export const BrowserPanelView = memo(function BrowserPanelView({
 							</>
 						)}
 					</DropdownMenuContent>
-				</DropdownMenu>
+				</DropdownMenu>}
 				</div>
 			</div>
 			<AnimatePresence initial={false}>
@@ -1794,7 +1796,7 @@ export const BrowserPanelView = memo(function BrowserPanelView({
 							ref={slotRef}
 						/>
 					</div>
-					{showStaticPreview ? <StaticPreview url={navState.url} /> : null}
+					{showBrowserFallback ? <BrowserWebFallback url={navState.url} /> : null}
 					{navState.url === "" ? (
 						<div className="pointer-events-none absolute inset-0 grid place-items-center p-5 text-center text-xs text-muted-foreground">
 							<p>{browserUnavailable ? t("browser.sessionEnded") : t("browser.emptyUrl")}</p>
@@ -2044,50 +2046,5 @@ function BrowserSuggestionIcon({ cachedFavicon, url, viewId }: { cachedFavicon?:
 			onError={() => setFavicon(undefined)}
 			src={favicon}
 		/>
-	);
-}
-
-function StaticPreview({ url }: { url: string }) {
-	return (
-		<div className="absolute inset-0 overflow-auto bg-background text-foreground">
-			<div className="border-b border-border bg-surface px-4 py-3">
-				<div className="text-caption font-semibold uppercase tracking-wide-md text-muted-foreground">Orchestrator Preview</div>
-				<div className="mt-1 truncate font-mono text-xs text-accent">{url}</div>
-			</div>
-			<div className="mx-auto max-w-preview-max px-5 py-6">
-				<div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-					<div className="flex items-center justify-between gap-3">
-						<div>
-							<h1 className="text-heading-lg font-semibold leading-tight tracking-normal text-foreground">
-								Demo app preview
-							</h1>
-							<p className="mt-1 text-control leading-row text-muted-foreground">
-								The worker exposed a local Vite app with <span className="font-mono">ao preview</span>.
-							</p>
-						</div>
-						<span className="rounded-md bg-success/15 px-2.5 py-1 text-caption font-semibold text-success">
-							Loaded
-						</span>
-					</div>
-					<div className="mt-5 grid grid-cols-3 gap-3">
-						{[
-							["Routes", "12 passing"],
-							["Build", "ready"],
-							["Latency", "42 ms"],
-						].map(([label, value]) => (
-							<div key={label} className="rounded-md border border-border bg-raised p-3">
-								<div className="text-caption font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-								<div className="mt-1 text-subtitle font-semibold text-foreground">{value}</div>
-							</div>
-						))}
-					</div>
-					<div className="mt-5 rounded-md border border-border bg-terminal p-3 font-mono text-xs leading-row text-terminal-dim">
-						<div>$ npm run dev -- --host 127.0.0.1</div>
-						<div className="text-success-bright">ready in 418 ms</div>
-						<div>Local: http://localhost:5173/</div>
-					</div>
-				</div>
-			</div>
-		</div>
 	);
 }

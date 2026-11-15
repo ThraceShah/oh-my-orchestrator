@@ -24,6 +24,10 @@ func openDB(t *testing.T) *Store {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
+	// Production passes SQLite's serialized writer connection to fleet. Keep
+	// the fixture identical: unconstrained connections have no busy timeout and
+	// can lose an event write to a simultaneous polling read with SQLITE_BUSY.
+	db.SetMaxOpenConns(1)
 	store := NewStore(db)
 	if err := store.Migrate(context.Background()); err != nil {
 		t.Fatal(err)
@@ -86,7 +90,7 @@ func TestStartedEventRecordsTheWorkerEngineID(t *testing.T) {
 	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "placement-1", Kind: "worker", NodeID: "w"}, SpawnRequest{SessionID: "placement-1", Kind: "worker"}); err != nil {
 		t.Fatal(err)
 	}
-	body, _ := json.Marshal(map[string]string{"sessionId": "engine-9"})
+	body, _ := json.Marshal(map[string]string{"sessionId": "engine-9", "mode": "chat"})
 	hub.Publish(Event{NodeID: "w", SessionID: "placement-1", Kind: EventStarted, Payload: body})
 	deadline := time.Now().Add(2 * time.Second)
 	var got SessionPlacement
@@ -104,7 +108,7 @@ func TestStartedEventRecordsTheWorkerEngineID(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if got.EngineID != "engine-9" || got.NodeID != "w" {
+	if got.EngineID != "engine-9" || got.NodeID != "w" || got.Mode != "chat" {
 		t.Fatalf("placement = %+v", got)
 	}
 }
@@ -149,7 +153,7 @@ func TestServiceDoesNotRetargetWhenTheWorkerIsGone(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatal(err)
 	}
-	if placement.State != PlacementFailed || placement.NodeID != "w" {
+	if placement.State != PlacementOffline || placement.NodeID != "w" || placement.DispatchState != "pending" {
 		t.Fatalf("placement = %+v", placement)
 	}
 }
@@ -296,16 +300,15 @@ func hubNode(t *testing.T, hub *Hub, id string) *recordingConn {
 	return conn
 }
 
-func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
+func TestBoardSessionsRetainsGlobalIdentityWhenWorkerCannotAnswer(t *testing.T) {
 	store := openDB(t)
-	svc := NewService(store, NewHub())
 	ctx := context.Background()
 	if _, err := store.Enroll(ctx, Node{ID: "w", Name: "w", Role: RoleWorker, Availability: AlwaysOn, Capacity: 1}); err != nil {
 		t.Fatal(err)
 	}
 	_ = store.Heartbeat(ctx, "w", []Capability{{Harness: "claude-code", LoggedIn: true}})
 	hub := NewHub()
-	svc = NewService(store, hub)
+	svc := NewService(store, hub)
 	hub.Attach("w", &recordingConn{})
 	if _, err := svc.PlaceAndDispatch(ctx, Request{SessionID: "job", Kind: "worker", Harness: "claude-code"}, SpawnRequest{SessionID: "job", Kind: "worker", Harness: "claude-code", DisplayName: "Remote"}); err != nil {
 		t.Fatal(err)
@@ -317,7 +320,7 @@ func TestBoardSessionsUsesTheEngineIDAndSurvivesStatusUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(board) != 1 || string(board[0].ID) != "engine-1" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) || board[0].TerminalHandleID != TerminalHandle("engine-1") {
+	if len(board) != 1 || string(board[0].ID) != "job" || board[0].OwnerNodeID != "w" || board[0].DisplayName != "Remote" || board[0].PlacementState != string(PlacementRunning) || board[0].TerminalHandleID != "" || board[0].StatusReadiness != "unavailable" || board[0].IsTerminated {
 		t.Fatalf("board = %+v", board)
 	}
 }
@@ -371,8 +374,8 @@ func TestChatSnapshotComesFromTheOwningWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	hub.Attach("w", replyConn{hub: hub})
-	raw, handled, err := svc.Chat(ctx, "engine-1", "snapshot", nil)
-	if err != nil || !handled || !bytes.Contains(raw, []byte("engine-1")) {
+	raw, handled, err := svc.Chat(ctx, "job", "snapshot", nil)
+	if err != nil || !handled || !bytes.Contains(raw, []byte("job")) || bytes.Contains(raw, []byte("engine-1")) {
 		t.Fatalf("raw=%s handled=%v err=%v", raw, handled, err)
 	}
 	_, handled, err = svc.Chat(ctx, "missing", "snapshot", nil)

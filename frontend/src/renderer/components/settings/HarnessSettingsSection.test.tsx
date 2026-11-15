@@ -267,6 +267,23 @@ describe("HarnessSettingsSection", () => {
 		vi.restoreAllMocks();
 	});
 
+	it("private web exposes readiness without installation, login, update or import actions", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			const readiness = readyCatalog();
+			readiness.agents.find((agent) => agent.id === "codex")!.authentication.state = "unauthorized";
+			mockInstalledOperations("npm", readiness);
+			renderSection();
+			expect(screen.getByText(/Agents on the service host/)).toBeInTheDocument();
+			const pi = await findListRow("pi");
+			expect(pi).toBeInTheDocument();
+			const page = await findAgentRow("codex");
+			expect(await within(page).findByText("Installed version")).toBeInTheDocument();
+			for (const name of ["Install", "Update", "Login", "Login again", "Logout"]) expect(within(page).queryByRole("button", { name })).not.toBeInTheDocument();
+			expect(within(page).queryByRole("tab", { name: "Import" })).not.toBeInTheDocument();
+		} finally { vi.unstubAllEnvs(); }
+	});
+
 	it("keeps unknown authentication details on the harness page with a clear label", async () => {
 		const readiness = readyCatalog();
 		readiness.agents.find((agent) => agent.id === "codex")!.authentication.state = "unknown";

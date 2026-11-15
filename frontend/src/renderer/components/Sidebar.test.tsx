@@ -702,6 +702,18 @@ describe("Sidebar", () => {
 		});
 	});
 
+	it.each([true, false])("private web has settings without account or mobile controls (expanded: %s)", (initialOpen) => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			cloudSessionState.configured = true;
+			renderSidebar({ initialOpen });
+			expect(screen.queryByLabelText("Sign in")).not.toBeInTheDocument();
+			expect(screen.queryByLabelText("Connect mobile")).not.toBeInTheDocument();
+			expect(screen.queryByRole("button", { name: "Automations" })).not.toBeInTheDocument();
+			expect(screen.getAllByLabelText("Settings").length).toBeGreaterThan(0);
+		} finally { vi.unstubAllEnvs(); }
+	});
+
 	it("shows the cloud sign-in entry point while signed out", () => {
 		cloudSessionState.configured = true;
 		renderSidebar();
@@ -1049,6 +1061,19 @@ describe("Sidebar", () => {
 		expect(await screen.findByText("Failed to remove project")).toBeInTheDocument();
 		expect(screen.queryByRole("dialog", { name: "Remove project" })).not.toBeInTheDocument();
 		expect(navigateMock).toHaveBeenCalledWith({ to: "/" });
+	});
+
+	it("private web opens the project coordinator and hides manual task and Scratchpad creation", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			renderSidebar({ workspaces: [workspace, { id: STANDALONE_WORKSPACE_ID, name: "Scratchpad", kind: STANDALONE_PROJECT_KIND, path: "", sessions: [session] }] });
+			expect(screen.queryByText("Scratchpad")).not.toBeInTheDocument();
+			await userEvent.click(screen.getByLabelText("Project actions for Project One"));
+			expect(screen.queryByRole("menuitem", { name: /New task/ })).not.toBeInTheDocument();
+			await userEvent.click(await screen.findByRole("menuitem", { name: "Open coordinator" }));
+			expect(useUiStore.getState().newTaskRequest?.projectId).toBe("proj-1");
+			expect(spawnMock).not.toHaveBeenCalled();
+		} finally { vi.unstubAllEnvs(); }
 	});
 
 	it("requests a new task for the project from the kebab menu", async () => {

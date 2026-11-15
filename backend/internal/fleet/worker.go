@@ -98,11 +98,22 @@ func handleSpawn(ctx context.Context, exec Executor, cmd Command) Event {
 		DisplayName:      req.DisplayName,
 		ExistingCheckout: req.Checkout,
 	}
+	if req.Launch != nil {
+		cfg = *req.Launch
+		// The resolved launch belongs to this engine, never recursively to fleet.
+		cfg.NodeID, cfg.Platform = "", ""
+		cfg.ExistingCheckout = req.Checkout
+		// A preparation token names a worktree on the controller; workers must
+		// create their own workspace and never claim a controller-local token.
+		cfg.TaskPreparation = ""
+	}
+	cfg.ClientRequestID = "fleet:" + req.SessionID
+	cfg.ClientRequestHash = req.RequestHash
 	session, _, _, err := exec.Spawn(ctx, cfg)
 	if err != nil {
 		return Event{SessionID: req.SessionID, Kind: EventFailed, Payload: jsonRaw(err.Error())}
 	}
-	body, _ := json.Marshal(map[string]string{"sessionId": string(session.ID), "checkout": req.Checkout})
+	body, _ := json.Marshal(map[string]string{"sessionId": string(session.ID), "checkout": req.Checkout, "mode": string(session.Mode)})
 	// SessionID stays the control plane's placement key. The engine's id travels
 	// in the payload because the worker's local session id is not the placement key.
 	return Event{SessionID: req.SessionID, Kind: EventStarted, Payload: body}

@@ -18,6 +18,15 @@ const actions: ProjectOrchestratorAction = {
 };
 
 describe("ProjectBoardActions", () => {
+	it("labels the private web action as opening the coordinator rather than a task", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			render(<TooltipProvider><ProjectBoardActions actions={actions} placement="header" /></TooltipProvider>);
+			expect(screen.getByRole("button", { name: "Open coordinator" })).toHaveTextContent("Open coordinator");
+			expect(screen.queryByRole("button", { name: "New task" })).not.toBeInTheDocument();
+			expect(screen.queryByText("Task")).not.toBeInTheDocument();
+		} finally { vi.unstubAllEnvs(); }
+	});
 	it("keeps New task the one filled header action on a cloud board", () => {
 		render(
 			<TooltipProvider>

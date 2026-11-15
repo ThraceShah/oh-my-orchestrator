@@ -3,10 +3,11 @@ package fleet
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/oh-my-orchestrator/oh-my-orchestrator/backend/internal/process"
 )
 
 // ExecPower runs the command the control plane stored for this action. The
@@ -26,7 +27,7 @@ func ExecPower(ctx context.Context, req PowerRequest) error {
 	if runtime.GOOS == "windows" {
 		shell, flag = "cmd", "/c"
 	}
-	cmd := exec.CommandContext(runCtx, shell, flag, command)
+	cmd := process.CommandContext(runCtx, shell, flag, command)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		text := strings.TrimSpace(string(out))

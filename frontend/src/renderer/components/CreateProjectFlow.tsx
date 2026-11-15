@@ -156,7 +156,7 @@ export function CreateProjectFlow({
 	mode = "single_repo",
 	onCreateProject,
 	onInitializeProject,
-	onCreateStandaloneAgent,
+	onCreateStandaloneAgent: requestedCreateStandaloneAgent,
 	firstRunClone = false,
 	onFirstRunDismiss,
 	onFirstRunProgress,
@@ -201,6 +201,8 @@ export function CreateProjectFlow({
 	sourceSignal?: { source: ProjectSource | "cloud"; nonce: number } | null;
 }) {
 	const { t } = useTranslation();
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
+	const onCreateStandaloneAgent = isWeb ? undefined : requestedCreateStandaloneAgent;
 	const resolvedIdleLabel = idleLabel ?? t("createProject.newProject");
 	const [error, setError] = useState<string | null>(null);
 	const [activeView, dispatchView] = useReducer(createProjectViewReducer, initialOpen ? "source" : null);
@@ -240,7 +242,8 @@ export function CreateProjectFlow({
 
 	// Cloud is exposed as another project source. Creating one still requires
 	// authentication, but discovery stays alongside clone/folder/workspace.
-	const { cloudEnabled, loading: cloudGateLoading } = useCloudGate();
+	const { cloudEnabled: cloudOffered, loading: cloudGateLoading } = useCloudGate();
+	const cloudEnabled = !isWeb && cloudOffered;
 	const { status: cloudSessionStatus, signIn: cloudSignIn } = useCloudSession();
 	const cloudAvailable = cloudEnabled && cloudSessionStatus === "authenticated";
 	const [offering, setOffering] = useState<ProjectOffering>("local");
@@ -328,7 +331,7 @@ export function CreateProjectFlow({
 	};
 
 	const chooseDirectory = async (kind: ProjectKind, presetPath?: string, preserveCurrentDialog = false) => {
-		if (hostId && !presetPath) {
+		if ((hostId || isWeb) && !presetPath) {
 			setRemoteBrowse({ kind, preserveCurrentDialog });
 			return;
 		}
@@ -415,8 +418,8 @@ export function CreateProjectFlow({
 				try {
 					const [validation, scan, ancestorWarning] = await Promise.all([
 						validateImportFolder(path, "workspace", hostId),
-						hostId ? Promise.resolve(null) : aoBridge.app.scanImportFolder({ path, mode: "workspace" }),
-						hostId ? Promise.resolve(undefined) : aoBridge.app.checkAncestorRepo(path).catch(() => undefined),
+						hostId || isWeb ? Promise.resolve(null) : aoBridge.app.scanImportFolder({ path, mode: "workspace" }),
+						hostId || isWeb ? Promise.resolve(undefined) : aoBridge.app.checkAncestorRepo(path).catch(() => undefined),
 					]);
 					const resolvedScan: ImportFolderScan = scan ?? { path: validation.root.repoPath, repos: [] };
 					setValidationScan(resolvedScan);
@@ -739,6 +742,7 @@ export function CreateProjectFlow({
 					body: {
 						importKind: "project",
 						path: currentValidation.root.repoPath,
+						...(isWeb ? { localOnly: true } : {}),
 							approvedActions: projectApprovedActions,
 							remoteUrl: remoteUrl || undefined,
 							githubRepository: githubRepository ?? undefined,
@@ -863,16 +867,16 @@ export function CreateProjectFlow({
 					/>
 					{cloneDialogOpen ? (
 						<CloneRepositoryDialog
-							firstRun={firstRunClone}
+							firstRun={firstRunClone && !isWeb}
 							onOpenLocalFolder={() => {
 								void chooseDirectory("single_repo", undefined, true);
 							}}
-							onStartStandaloneAgent={() => {
+							onStartStandaloneAgent={isWeb ? undefined : () => {
 								onFirstRunDismiss?.("standalone");
 								setCloneDialogOpen(false);
 								onCreateStandaloneAgent?.();
 							}}
-							remote={Boolean(hostId)}
+							remote={Boolean(hostId) || isWeb}
 							onChooseRemoteDestination={() => setRemoteBrowse({ kind: "clone_destination" })}
 							disabled={isBusy}
 							cloning={cloneActivity === "cloning"}
@@ -1038,10 +1042,10 @@ export function CreateProjectFlow({
 				repositorySetupNeeded={repositorySetup !== null}
 				repositorySetupWarning={repositorySetupWarning}
 			/>
-			{hostId && hostLabel && remoteBrowse ? <RemoteDirectoryPicker
-				key={`${hostId}:${remoteBrowse.kind}`}
+			{(hostId || isWeb) && remoteBrowse ? <RemoteDirectoryPicker
+				key={`${hostId ?? "service-host"}:${remoteBrowse.kind}`}
 				hostId={hostId}
-				hostLabel={hostLabel}
+				hostLabel={hostLabel ?? t("createProject.serviceHost", { defaultValue: "Orchestrator server" })}
 				connected={connected}
 				initialPath={remoteBrowse.kind === "clone_destination" ? cloneDetails.destinationParent : ""}
 				onClose={() => setRemoteBrowse(null)}
@@ -1088,7 +1092,8 @@ function safeProjectCreationError(message: string, fallback: string, code?: stri
 }
 
 async function validateImportFolder(path: string, importKind: "project" | "workspace", hostId?: string): Promise<ImportValidationResult> {
-	const { data, error } = await (hostId ? clientForSessionHost(hostId) : apiClient).POST("/api/v1/imports/validate", { body: { importKind, path } });
+	const body = { importKind, path, ...(import.meta.env.VITE_AO_WEB === "1" && importKind === "project" ? { localOnly: true } : {}) };
+	const { data, error } = await (hostId ? clientForSessionHost(hostId) : apiClient).POST("/api/v1/imports/validate", { body });
 	if (error || !data) throw apiErrorException(error, "Could not validate this folder.");
 	return data;
 }
@@ -1734,6 +1739,7 @@ function ImportSourcePicker({
 	onSelectHost?: (hostId?: string) => void;
 }) {
 	const { t } = useTranslation();
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
 	// With Cloud available, ask "Local or Cloud?" first so cloud and local
 	// sources never share one list. Cloud never runs on a remote machine, so a
 	// preselected host skips the question.
@@ -1780,7 +1786,7 @@ function ImportSourcePicker({
 		bodyRef.current?.querySelector<HTMLElement>(`[data-step="${step}"] button:not(:disabled)`)?.focus({ preventScroll: true });
 	}, [step]);
 	const showBack = cloudOffered && !askPlacement;
-	const hasRemoteHosts = remoteHosts.length > 0 && Boolean(onSelectHost);
+	const hasRemoteHosts = !isWeb && remoteHosts.length > 0 && Boolean(onSelectHost);
 	const backToPlacement = () => {
 		if (hostId) onSelectHost?.(undefined);
 		onLocalChosenChange(false);
@@ -1815,13 +1821,13 @@ function ImportSourcePicker({
 		{
 			source: "local",
 			icon: <FolderClosed className="size-6" aria-hidden="true" />,
-			label: t("createProject.openLocal"),
+			label: isWeb ? t("home.openServerFolder", { defaultValue: "Open a server folder" }) : t("createProject.openLocal"),
 			description: hostLabel ? t("remote.openExistingProjectDesc", { label: hostLabel }) : t("createProject.openLocalDesc"),
 		},
 		{
 			source: "workspace",
 			icon: <Folders className="size-6" aria-hidden="true" />,
-			label: t("createProject.addWorkspace"),
+			label: isWeb ? t("home.openServerWorkspace", { defaultValue: "Open a server workspace" }) : t("createProject.addWorkspace"),
 			description: t("createProject.workspaceDesc"),
 		},
 	];

@@ -35,6 +35,7 @@ type taskPromptConfig struct {
 type systemPromptConfig struct {
 	Role                  sessionPromptRole
 	Standalone            bool
+	LocalCoordinator      bool
 	Project               promptProject
 	OrchestratorSessionID string
 	ProjectRules          string
@@ -84,7 +85,11 @@ func buildSystemPromptText(cfg systemPromptConfig) string {
 	sections := make([]string, 0, 6)
 	switch cfg.Role {
 	case sessionPromptRoleOrchestrator:
-		sections = append(sections, orchestratorSystemPrompt(cfg.Project))
+		if cfg.LocalCoordinator {
+			sections = append(sections, localCoordinatorSystemPrompt(cfg.Project))
+		} else {
+			sections = append(sections, orchestratorSystemPrompt(cfg.Project))
+		}
 		if rules := strings.TrimSpace(cfg.OrchestratorRules); rules != "" {
 			sections = append(sections, "## Project-Specific Orchestrator Rules\n"+rules)
 		}

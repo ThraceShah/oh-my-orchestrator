@@ -2,28 +2,35 @@ package fleet
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
 // Service is the control-plane use of the fleet: enroll, observe, place, and
 // ask a connected worker to run what was placed. It does not launch agents.
 type Service struct {
-	store *Store
-	hub   *Hub
-	now   func() time.Time
+	store    *Store
+	hub      *Hub
+	now      func() time.Time
+	launchMu sync.Mutex
 }
 
+// NewService connects fleet persistence to the authenticated worker hub.
 func NewService(store *Store, hub *Hub) *Service {
 	return &Service{store: store, hub: hub, now: time.Now}
 }
 
+// Enroll registers a node and issues its one-time dial-in credential.
 func (s *Service) Enroll(ctx context.Context, n Node) (Enrollment, error) {
 	return s.store.Enroll(ctx, n)
 }
 
+// Nodes returns enrollment, observed presence, capabilities, and owned load.
 func (s *Service) Nodes(ctx context.Context) ([]Node, error) {
 	nodes, err := s.store.List(ctx)
 	if err != nil {
@@ -33,10 +40,15 @@ func (s *Service) Nodes(ctx context.Context) ([]Node, error) {
 		if s.hub != nil && s.hub.Connected(nodes[i].ID) {
 			nodes[i].Presence = PresenceOnline
 		}
+		nodes[i].InUse, err = s.store.CountActive(ctx, nodes[i].ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return nodes, nil
 }
 
+// Heartbeat records connectivity without refreshing native probe timestamps.
 func (s *Service) Heartbeat(ctx context.Context, nodeID string, caps []Capability) error {
 	return s.store.Heartbeat(ctx, nodeID, caps)
 }
@@ -50,6 +62,30 @@ func (s *Service) ObserveOffline(ctx context.Context) ([]string, error) {
 // PlaceAndDispatch records a placement before asking the worker to start.
 // Failure leaves the placement in failed and does not select another node.
 func (s *Service) PlaceAndDispatch(ctx context.Context, req Request, spawn SpawnRequest) (Decision, error) {
+	s.launchMu.Lock()
+	defer s.launchMu.Unlock()
+	req.RequireFullLaunch = spawn.Launch != nil
+	if req.Mode == "" {
+		req.Mode = spawn.Mode
+	}
+	if strings.TrimSpace(req.SessionID) == "" {
+		return Decision{}, fmt.Errorf("a fleet launch needs a session id")
+	}
+	spawn.SessionID = req.SessionID
+	hash := spawn.RequestHash
+	if hash == "" {
+		body, err := json.Marshal(spawn)
+		if err != nil {
+			return Decision{}, err
+		}
+		sum := sha256.Sum256(body)
+		hash = hex.EncodeToString(sum[:])
+	}
+	if original, found, err := s.store.launchConflict(ctx, req.SessionID, hash); err != nil {
+		return Decision{}, err
+	} else if found {
+		return Decision{NodeID: original.NodeID, State: original.State}, nil
+	}
 	nodes, err := s.candidates(ctx)
 	if err != nil {
 		return Decision{}, err
@@ -58,12 +94,24 @@ func (s *Service) PlaceAndDispatch(ctx context.Context, req Request, spawn Spawn
 	if err != nil {
 		return Decision{}, err
 	}
+	spawn.Checkout = decision.Checkout
+	spawn.RequestHash = hash
+	body, err := json.Marshal(spawn)
+	if err != nil {
+		return Decision{}, err
+	}
 	placement := SessionPlacement{
 		SessionID: req.SessionID, NodeID: decision.NodeID, State: decision.State, UpdatedAt: s.now(),
 		ProjectID: spawn.ProjectID, Kind: spawn.Kind, Harness: spawn.Harness, DisplayName: spawn.DisplayName,
+		ParentID: spawn.ParentID, Mode: spawn.Mode, RequestHash: hash, Payload: body, DispatchState: "pending",
 	}
-	if err := s.store.PutPlacement(ctx, placement); err != nil {
+	created, err := s.store.SaveLaunch(ctx, placement)
+	if err != nil {
 		return Decision{}, err
+	}
+	if !created {
+		original, _, err := s.store.launchConflict(ctx, req.SessionID, hash)
+		return Decision{NodeID: original.NodeID, State: original.State}, err
 	}
 	if decision.State == PlacementOffline {
 		return decision, nil
@@ -75,30 +123,61 @@ func (s *Service) PlaceAndDispatch(ctx context.Context, req Request, spawn Spawn
 		}
 		return decision, nil
 	}
-	spawn.Checkout = decision.Checkout
-	if err := s.dispatchSpawn(ctx, decision.NodeID, spawn); err != nil {
-		_ = s.fail(ctx, req.SessionID, decision.NodeID, err)
+	if err := s.dispatchPending(ctx, placement); err != nil {
 		return Decision{}, err
 	}
-	placement.State = PlacementStarting
-	_ = s.store.PutPlacement(ctx, placement)
 	decision.State = PlacementStarting
 	return decision, nil
 }
 
+// Placement reads the durable owner of a global session identity.
 func (s *Service) Placement(ctx context.Context, sessionID string) (SessionPlacement, bool, error) {
 	return s.store.Placement(ctx, sessionID)
 }
 
 // NoteStarted records that the owning worker has the session running.
-// engineID is the id its local engine assigned; empty keeps the previous one.
-func (s *Service) NoteStarted(ctx context.Context, sessionID, nodeID, engineID string) error {
-	return s.store.PutPlacement(ctx, SessionPlacement{SessionID: sessionID, NodeID: nodeID, State: PlacementRunning, EngineID: engineID, UpdatedAt: s.now()})
+// engineID and mode are the worker engine's committed identity and interface.
+func (s *Service) NoteStarted(ctx context.Context, sessionID, nodeID, engineID string, actualMode ...string) error {
+	original, found, err := s.store.Placement(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if !found || original.NodeID != nodeID {
+		return fmt.Errorf("fleet start does not match placement owner")
+	}
+	if strings.TrimSpace(engineID) == "" {
+		return fmt.Errorf("fleet start omitted engine identity")
+	}
+	if original.State == PlacementStopped {
+		return nil
+	}
+	if original.EngineID != "" && original.EngineID != engineID {
+		return fmt.Errorf("fleet start attempted to replace engine identity")
+	}
+	mode := original.Mode
+	if len(actualMode) > 0 && (actualMode[0] == "chat" || actualMode[0] == "tui") {
+		mode = actualMode[0]
+	}
+	return s.store.ackStarted(ctx, sessionID, nodeID, engineID, mode, s.now())
 }
 
 // NoteFailed records a start failure without moving the session.
 func (s *Service) NoteFailed(ctx context.Context, sessionID, nodeID, detail string) error {
-	return s.store.PutPlacement(ctx, SessionPlacement{SessionID: sessionID, NodeID: nodeID, State: PlacementFailed, Detail: detail, UpdatedAt: s.now()})
+	original, found, err := s.store.PlacementFor(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if !found || original.NodeID != nodeID {
+		return fmt.Errorf("fleet failure does not match placement owner")
+	}
+	// A failed message or chat operation is not a failed process launch.
+	if original.EngineID != "" || original.State == PlacementStopped {
+		return nil
+	}
+	if err := s.store.PutPlacement(ctx, SessionPlacement{SessionID: original.SessionID, NodeID: nodeID, State: PlacementFailed, Detail: detail, UpdatedAt: s.now()}); err != nil {
+		return err
+	}
+	return s.store.markLaunch(ctx, original.SessionID, "failed")
 }
 
 func (s *Service) candidates(ctx context.Context) ([]Candidate, error) {
@@ -219,7 +298,7 @@ func (s *Service) Chat(ctx context.Context, sessionID, op string, payload json.R
 	if s == nil || s.store == nil || s.hub == nil {
 		return nil, false, nil
 	}
-	placement, ok, err := s.store.PlacementFor(ctx, sessionID)
+	placement, ok, err := s.store.Placement(ctx, sessionID)
 	if err != nil || !ok {
 		return nil, false, err
 	}
@@ -242,5 +321,5 @@ func (s *Service) Chat(ctx context.Context, sessionID, op string, payload json.R
 	if ev.Kind == EventFailed {
 		return nil, true, fmt.Errorf("fleet chat: %s", ev.Payload)
 	}
-	return ev.Payload, true, nil
+	return canonicalChatSessionIDs(ev.Payload, placement), true, nil
 }

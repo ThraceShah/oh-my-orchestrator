@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Plus } from "@/components/app-icons";
 import type { ProjectOrchestratorAction } from "../hooks/useProjectOrchestratorAction";
 import { getAgentActivityView } from "../lib/session-presentation";
+import { isPrivateWeb } from "../lib/private-web";
 import { useOrchestratorReplyState } from "../stores/orchestrator-reply-store";
 import { Button } from "./ui/button";
 import { TopbarActionError } from "./TopbarActionError";
@@ -21,6 +22,7 @@ export function ProjectBoardActions({ actions, placement, quiet = false, cloud =
 	const { projectId, hostId, orchestrator, isSpawning, isProjectRestarting, isProvisioning, spawnError, canCreateAsTui,
 		openNewTask, openOrchestrator } = actions;
 	const header = placement === "header";
+	const newTaskLabel = t(isPrivateWeb() ? "shell.openCoordinator" : "shell.newTask");
 	const orchestratorReply = useOrchestratorReplyState({ projectId, hostId, orchestrator, viewing: false });
 	const busy = isSpawning || isProjectRestarting || isProvisioning;
 	const activity = orchestrator ? getAgentActivityView(orchestrator.activity, t).label : undefined;
@@ -62,7 +64,7 @@ export function ProjectBoardActions({ actions, placement, quiet = false, cloud =
 			<TooltipTrigger asChild>
 				<span className="inline-flex" style={style}>
 					<Button type="button" size="sm"
-						aria-label={t("shell.newTask")}
+						aria-label={newTaskLabel}
 						data-priority={header ? "primary" : undefined}
 						disabled={isProjectRestarting || isProvisioning}
 						onClick={() => {
@@ -73,11 +75,11 @@ export function ProjectBoardActions({ actions, placement, quiet = false, cloud =
 						variant={header ? "primary" : quiet || cloud ? "quiet" : "secondary"}
 					>
 						<Plus className="size-icon-md" aria-hidden="true" />
-						<span data-compact-label={header ? "" : undefined}>{t(header ? "newTask.task" : "shell.newTask")}</span>
+						<span data-compact-label={header ? "" : undefined}>{isPrivateWeb() ? newTaskLabel : t(header ? "newTask.task" : "shell.newTask")}</span>
 					</Button>
 				</span>
 			</TooltipTrigger>
-			<TooltipContent shortcut="new-session" side="bottom">{t("shell.newTask")}</TooltipContent>
+			<TooltipContent shortcut="new-session" side="bottom">{newTaskLabel}</TooltipContent>
 		</Tooltip>
 	);
 	const feedback = spawnError && !quiet ? (

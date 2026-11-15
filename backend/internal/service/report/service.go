@@ -35,11 +35,12 @@ type ArtifactRecorder interface {
 
 // Service validates and creates durable worker reports.
 type Service struct {
-	store     Store
-	now       func() time.Time
-	newID     func() string
-	onCreated func(domain.ReportRecord)
-	artifacts ArtifactRecorder
+	store        Store
+	now          func() time.Time
+	newID        func() string
+	onCreated    func(domain.ReportRecord)
+	artifacts    ArtifactRecorder
+	fleetReports func(context.Context, domain.ProjectID) ([]domain.ReportRecord, error)
 }
 
 // Deps configures a Service. Artifacts is optional.
@@ -62,6 +63,12 @@ func New(d Deps) *Service {
 	return &Service{store: d.Store, now: d.Now, newID: d.NewID, onCreated: d.OnCreated, artifacts: d.Artifacts}
 }
 
+// SetFleetReports adds the control plane's durable remote report receipts to
+// history without manufacturing local session rows for the worker engines.
+func (s *Service) SetFleetReports(read func(context.Context, domain.ProjectID) ([]domain.ReportRecord, error)) {
+	s.fleetReports = read
+}
+
 // ListProject returns persisted report facts ordered by created_at then id,
 // with each report's outputs in persisted position order. It never claims,
 // acknowledges, schedules, or otherwise mutates report delivery state.
@@ -81,6 +88,13 @@ func (s *Service) ListProject(ctx context.Context, projectID domain.ProjectID) (
 	reports, err := reader.ListReportsByProject(ctx, projectID)
 	if err != nil {
 		return nil, err
+	}
+	if s.fleetReports != nil {
+		remote, err := s.fleetReports(ctx, projectID)
+		if err != nil {
+			return nil, err
+		}
+		reports = append(reports, remote...)
 	}
 	sort.SliceStable(reports, func(i, j int) bool {
 		if reports[i].CreatedAt.Equal(reports[j].CreatedAt) {

@@ -47,6 +47,15 @@ beforeEach(() => {
 });
 
 describe("NewTaskNavigator", () => {
+	it("routes every private web request to the service-host coordinator page, never the legacy task dialog", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			renderNavigator();
+			act(() => useUiStore.getState().requestNewTask("coder-1", "box-a"));
+			expect(navigateMock).toHaveBeenCalledWith({ to: "/new", search: { project: "coder-1", host: undefined }, replace: false });
+			expect(dialog.props).toMatchObject({ open: false });
+		} finally { vi.unstubAllEnvs(); }
+	});
 	it("opens the new chat page for each request, including a repeat for the same project", () => {
 		renderNavigator();
 		expect(navigateMock).not.toHaveBeenCalled();

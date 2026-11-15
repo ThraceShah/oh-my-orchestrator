@@ -7,6 +7,7 @@
  */
 
 import { useSettings } from "./useSettings";
+import { isPrivateWeb } from "../lib/private-web";
 
 export interface CloudGate {
 	/** Whether the cloud offering is available (user toggle or flag, plus a control plane). */
@@ -23,7 +24,7 @@ export interface CloudGate {
 export function useCloudGate(enabled = true): CloudGate {
 	const { settings, isLoading } = useSettings(undefined, enabled);
 	return {
-		cloudEnabled: settings?.cloudEnabled ?? false,
+		cloudEnabled: !isPrivateWeb() && (settings?.cloudEnabled ?? false),
 		localEnabled: settings?.localEnabled ?? true,
 		client: settings?.client ?? "",
 		loading: isLoading,

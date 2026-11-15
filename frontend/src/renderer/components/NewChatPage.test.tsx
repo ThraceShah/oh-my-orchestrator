@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { prepareChatComposerDelivery, writeChatComposerText } from "../lib/chat-drafts";
+import { prepareChatComposerDelivery, readChatSessionDraft, writeChatComposerText } from "../lib/chat-drafts";
 import type { ApprovalMode } from "../types/conversation";
 import { rememberChatSettingsTemplate } from "../lib/chat-settings-template";
 import type { ChatWorkspaceProps } from "./chat/ChatWorkspace";
@@ -24,12 +24,14 @@ const h = vi.hoisted(() => ({
 	approvalModes: undefined as ApprovalMode[] | undefined,
 	modelWarning: undefined as string | undefined,
 	modelWarningRetries: true,
+	coordinator: null as null | { id: string },
 }));
 
 vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => h.navigate,
 	useRouter: () => ({ preloadRoute: async () => undefined, history: { canGoBack: () => false, back: vi.fn() } }),
 }));
+vi.mock("../hooks/useProjectCoordinator", () => ({ useProjectCoordinator: () => ({ data: h.coordinator, isSuccess: true, isError: false }) }));
 vi.mock("./settings/MobileDevicesSection", () => ({ mobileDevicesQueryKey: ["mobile-devices"], fetchDevices: async () => [] }));
 vi.mock("./chat/ChatWorkspace", () => ({
 	ChatWorkspace: (props: ChatWorkspaceProps) => {
@@ -100,10 +102,48 @@ beforeEach(() => {
 	h.approvalModes = undefined;
 	h.modelWarning = undefined;
 	h.modelWarningRetries = true;
+	h.coordinator = null;
 	window.localStorage.clear();
 });
 
 describe("NewChatPage", () => {
+	it("opens the existing project coordinator before offering web creation controls", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		h.coordinator = { id: "coordinator-1" };
+		try {
+			renderPage();
+			expect(h.workspace?.draftSettings).toBeNull();
+			expect(h.workspace?.sessionRole).toBe("orchestrator");
+			await waitFor(() => expect(h.navigate).toHaveBeenCalledWith({ to: "/projects/$projectId/sessions/$sessionId", params: { projectId: "proj-1", sessionId: "coordinator-1" }, replace: true }));
+			expect(h.launch).not.toHaveBeenCalled();
+		} finally { vi.unstubAllEnvs(); }
+	});
+
+	it("preserves a refused first-send draft and offers the coordinator created by another request", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			h.launch.mockRejectedValue(Object.assign(new Error("Coordinator already active"), { name: "TaskCreateError", code: "COORDINATOR_ALREADY_ACTIVE", details: { sessionId: ["other-coordinator"] } }));
+			writeChatComposerText(draftScope, "Keep this plan");
+			renderPage();
+			await act(async () => { await Promise.resolve(h.workspace?.onSend?.("Keep this plan", undefined, "first-send")).catch(() => undefined); });
+			expect(readChatSessionDraft(draftScope).composer.text).toBe("Keep this plan");
+			expect(screen.getByRole("alert")).toHaveTextContent("it was not sent");
+			await userEvent.click(screen.getByRole("button", { name: "Open project coordinator" }));
+			expect(h.navigate).toHaveBeenCalledWith(expect.objectContaining({ params: { projectId: "proj-1", sessionId: "other-coordinator" } }));
+			expect(h.launch).toHaveBeenCalledTimes(1);
+		} finally { vi.unstubAllEnvs(); }
+	});
+
+	it("requires a project and hides standalone creation controls on the web", () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			const view = renderPage();
+			view.showProject("__standalone__");
+			expect(h.workspace?.draftSettings).toBeNull();
+			expect(h.workspace?.composerLockedPlaceholder).toBeTruthy();
+			expect(h.launch).not.toHaveBeenCalled();
+		} finally { vi.unstubAllEnvs(); }
+	});
 	it("offers Retry beside a model notice only when reading the list again can clear it", () => {
 		h.modelWarning = "Couldn't load Cloud's models for Codex.";
 		renderPage();

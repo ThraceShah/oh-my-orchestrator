@@ -276,6 +276,39 @@ afterEach(() => {
 	clearCachedAgentModels("codex");
 });
 
+describe("personal web coordinator launch", () => {
+	it("starts only the local project coordinator, preserving model/effort and retry identity without preparing worker worktrees", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			h.get.mockImplementation(async (path: string) => path.includes("/models")
+				? { data: { agent: "codex", selectionMode: "list", allowCustom: false, models: [{ id: "gpt-6", label: "GPT-6", isDefault: true, efforts: ["high"], defaultEffort: "high" }] } }
+				: { data: { status: "ok", project: { id: "proj-1", config: { worker: { agent: "claude-code" }, orchestrator: { agent: "codex", agentConfig: { model: "gpt-6", effort: "high" } } } } } });
+			h.post.mockResolvedValue({ data: { orchestrator: { id: "coordinator-1" } } });
+			let launch!: ReturnType<typeof useTaskLaunch>;
+			function Launcher() { launch = useTaskLaunch({ projectId: "proj-1" }); return null; }
+			render(<Wrap><Launcher /></Wrap>);
+			await waitFor(() => expect(launch.canSubmit).toBe(true));
+			expect(launch.agent.value).toBe("codex");
+			await act(async () => { expect(await launch.launch("Plan the feature", { clientRequestId: "first-send", replay: { agent: "codex", model: "gpt-6", effort: "high" } })).toBe("coordinator-1"); });
+			expect(h.post).toHaveBeenCalledWith("/api/v1/orchestrators", expect.objectContaining({ body: expect.objectContaining({ projectId: "proj-1", agent: "codex", model: "gpt-6", effort: "high", brief: "Plan the feature", clientRequestId: "first-send" }) }));
+			expect(h.post.mock.calls.every(([path]) => path === "/api/v1/orchestrators")).toBe(true);
+		} finally { vi.unstubAllEnvs(); }
+	});
+
+	it("does not allow a standalone worker launch on the web", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			let launch!: ReturnType<typeof useTaskLaunch>;
+			function Launcher() { launch = useTaskLaunch({ projectId: "__standalone__" }); return null; }
+			render(<Wrap><Launcher /></Wrap>);
+			await waitFor(() => expect(launch.agent.value).toBeTruthy());
+			expect(launch.canSubmit).toBe(false);
+			await expect(launch.launch("Do work")).rejects.toThrow();
+			expect(h.post).not.toHaveBeenCalled();
+		} finally { vi.unstubAllEnvs(); }
+	});
+});
+
 describe("TaskComposer", () => {
 	it("requires a named branch and a second Start before retrying a checked out branch", async () => {
 		let delegates = 0;

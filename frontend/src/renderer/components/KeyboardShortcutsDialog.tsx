@@ -9,6 +9,7 @@ import {
 	type ShortcutBinding,
 } from "../../shared/shortcuts";
 import { memo, useRef } from "react";
+import { privateWebShortcutAvailable } from "../lib/private-web";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { shortcutCategoryLabelKeys, shortcutLabelKeys } from "../i18n/key-maps";
@@ -130,6 +131,7 @@ export const KeyboardShortcutsDialog = memo(function KeyboardShortcutsDialog({
 	const availableShortcuts = APP_SHORTCUTS.filter(
 		(shortcut) =>
 			shortcut.id !== "keyboard-shortcuts" &&
+			privateWebShortcutAvailable(shortcut.id) &&
 			(!paletteShortcuts.includes(shortcut.id) || isCommandPaletteEnabled) &&
 			(shortcut.id !== "dictate" || developerMode) &&
 			(!isSplitPaneShortcut(shortcut.id) || splitPanes),

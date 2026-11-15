@@ -248,8 +248,8 @@ type CreateProjectConfigInput = {
 export function createProjectConfig(input: CreateProjectConfigInput): components["schemas"]["ProjectConfig"] {
 	return {
 		...(input.defaultBranch ? { defaultBranch: input.defaultBranch } : {}),
-		worker: { agent: input.workerAgent as components["schemas"]["RoleOverride"]["agent"] },
-		orchestrator: { agent: input.orchestratorAgent as components["schemas"]["RoleOverride"]["agent"] },
+		...(input.workerAgent ? { worker: { agent: input.workerAgent as components["schemas"]["RoleOverride"]["agent"] } } : {}),
+		...(input.orchestratorAgent ? { orchestrator: { agent: input.orchestratorAgent as components["schemas"]["RoleOverride"]["agent"] } } : {}),
 		...(input.trackerIntake ? { trackerIntake: input.trackerIntake } : {}),
 	};
 }
@@ -799,6 +799,10 @@ const replacementErrorCount = Object.keys(orchestratorReplacementErrors).length;
 			useSidebarOrderStore.getState().moveProjectToTop(workspace.id);
 			updateWorkspaces((current) => [workspace, ...current.filter((item) => item.id !== workspace.id)]);
 			setOrchestratorStartupError(workspace.id, null);
+			if (import.meta.env.VITE_AO_WEB === "1") {
+				await navigate({ to: "/new", search: { project: workspace.id } });
+				return;
+			}
 			setProjectProvisioning(workspace.id, true);
 			await navigate({ to: "/projects/$projectId", params: { projectId: workspace.id } });
 			void provisionOrchestrator(workspace, input, source);
@@ -872,6 +876,10 @@ const replacementErrorCount = Object.keys(orchestratorReplacementErrors).length;
 						}
 					}
 					if (registeredWorkspace) {
+						if (import.meta.env.VITE_AO_WEB === "1") {
+							await navigate({ to: "/new", search: { project: registeredWorkspace.id } });
+							return;
+						}
 						if (input.clonePreparationId) {
 							setOrchestratorStartupError(registeredWorkspace.id, null);
 							setProjectProvisioning(registeredWorkspace.id, true);
@@ -974,6 +982,7 @@ const replacementErrorCount = Object.keys(orchestratorReplacementErrors).length;
 		}
 	}, []);
 	const createRemoteProject = useCallback(async (hostId: string, input: CreateProjectInput) => {
+		if (import.meta.env.VITE_AO_WEB === "1") throw new Error("Register the coordinator project on the Orchestrator server.");
 		const host = remoteHosts.find((candidate) => candidate.hostId === hostId);
 		if (host?.status !== "connected") throw new Error(`Connect to ${host?.label ?? hostId} before adding a project.`);
 		const client = clientForHost(hostId);

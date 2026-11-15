@@ -159,6 +159,20 @@ func TestImportAPI_PrepareGit(t *testing.T) {
 	}
 }
 
+func TestImportAPI_LocalOnlyInputs(t *testing.T) {
+	svc := &fakeImportService{}
+	srv := newImportTestServer(t, svc)
+	for _, path := range []string{"/api/v1/imports/validate", "/api/v1/imports/prepare-git"} {
+		body, status, _ := doRequest(t, srv, "POST", path, `{"importKind":"project","path":"/repo","localOnly":true}`)
+		if status != http.StatusOK {
+			t.Fatalf("POST %s = %d, want 200; body=%s", path, status, body)
+		}
+	}
+	if !svc.validateIn.LocalOnly || !svc.prepareIn.LocalOnly {
+		t.Fatalf("local-only policy was not passed through: validate=%#v prepare=%#v", svc.validateIn, svc.prepareIn)
+	}
+}
+
 func TestImportAPI_NilSvcReturns501(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(httpd.NewRouterWithControl(config.Config{}, log, nil, httpd.APIDeps{}, httpd.ControlDeps{}))

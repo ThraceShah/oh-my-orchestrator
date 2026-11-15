@@ -66,6 +66,7 @@ func Build() ([]byte, error) {
 	r.Spec.Tags = []openapi31.Tag{
 		*(&openapi31.Tag{Name: "agents"}).WithDescription(
 			"Supported and locally runnable agent adapters"),
+		*(&openapi31.Tag{Name: "fleet"}).WithDescription("Worker capability discovery for the project coordinator"),
 		*(&openapi31.Tag{Name: "projects"}).WithDescription(
 			"Project registry, configuration, and lifecycle administration"),
 		*(&openapi31.Tag{Name: "sessions"}).WithDescription(
@@ -499,6 +500,9 @@ var schemaNames = map[string]string{ //nolint:gosec // Public OpenAPI type names
 	"ControllersSpawnOrchestratorRequest":                 "SpawnOrchestratorRequest",
 	"ControllersSpawnOrchestratorResponse":                "SpawnOrchestratorResponse",
 	"ControllersOrchestratorResponse":                     "OrchestratorResponse",
+	"ControllersFleetNodeListResponse":                    "FleetNodeListResponse",
+	"FleetNodeSummary":                                    "FleetNodeSummary",
+	"FleetCapability":                                     "FleetAgentCapability",
 	"AgentInventory":                                      "ListAgentsResponse",
 	"AgentInfo":                                           "AgentInfo",
 	"AgentProbeResult":                                    "ProbeAgentResponse",
@@ -785,6 +789,7 @@ type operation struct {
 func operations() []operation {
 	ops := append([]operation{}, eventOperations()...)
 	ops = append(ops, agentOperations()...)
+	ops = append(ops, fleetOperations()...)
 	ops = append(ops, projectOperations()...)
 	ops = append(ops, sessionOperations()...)
 	ops = append(ops, automationOperations()...)
@@ -3967,10 +3972,11 @@ func sessionOperations() []operation {
 		},
 		{
 			method: http.MethodPost, path: "/api/v1/orchestrators", id: "spawnOrchestrator", tag: "sessions",
-			summary: "Spawn an orchestrator session",
+			summary: "Ensure the local project coordinator and start its first conversation",
 			reqBody: controllers.SpawnOrchestratorRequest{},
 			resps: []respUnit{
 				{http.StatusCreated, controllers.SpawnOrchestratorResponse{}},
+				{http.StatusConflict, envelope.APIError{}},
 				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusNotFound, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},

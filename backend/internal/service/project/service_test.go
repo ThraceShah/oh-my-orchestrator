@@ -188,7 +188,7 @@ func TestManager_AddListGetRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}
-	if proj.ID != "ao" || proj.Name != "Agent Orchestrator" || proj.Path != repo || proj.DefaultBranch != domain.DefaultBranchAuto {
+	if proj.ID != "ao" || proj.Name != "Agent Orchestrator" || proj.Path != repo || proj.DefaultBranch != "main" {
 		t.Fatalf("Add returned %#v", proj)
 	}
 
@@ -749,14 +749,14 @@ func TestManager_RemoveDoesNotArchiveWhenTeardownFails(t *testing.T) {
 func TestManager_DefaultsWhenUnconfigured(t *testing.T) {
 	ctx := context.Background()
 	m := newManager(t)
-	repo := gitRepo(t)
+	repo := gitRepoWithOrigin(t, "https://example.invalid/project.git")
 
 	if _, err := m.Add(ctx, project.AddInput{Path: repo, ProjectID: ptr("ao")}); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
 
-	// A remoteless project stays in automatic mode instead of deriving a default
-	// from its current checkout. The empty config remains unpersisted.
+	// A project with a remote stays in automatic mode instead of deriving a
+	// default from its current checkout. The empty config remains unpersisted.
 	got, err := m.Get(ctx, "ao")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
@@ -813,6 +813,9 @@ func TestManager_AddDoesNotTreatCurrentBranchAsAutomaticDefault(t *testing.T) {
 	ctx := context.Background()
 	m := newManager(t)
 	repo := gitRepoOnBranch(t, "master")
+	if out, err := exec.Command("git", "-C", repo, "remote", "add", "origin", "https://example.invalid/project.git").CombinedOutput(); err != nil {
+		t.Fatalf("add origin: %v (%s)", err, out)
+	}
 
 	proj, err := m.Add(ctx, project.AddInput{Path: repo, ProjectID: ptr("ao")})
 	if err != nil {

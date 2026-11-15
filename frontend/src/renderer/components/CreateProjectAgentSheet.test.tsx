@@ -96,6 +96,16 @@ function hoursAgo(hours: number): string {
 }
 
 describe("CreateProjectAgentSheet", () => {
+	it("registers a web project without choosing a worker Agent or starting a coordinator prematurely", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			const submit = renderSheet();
+			expect(screen.queryByLabelText("Worker agent")).not.toBeInTheDocument();
+			expect(screen.queryByLabelText("Orchestrator agent")).not.toBeInTheDocument();
+			await userEvent.click(screen.getByRole("button", { name: "Add project" }));
+			expect(submit).toHaveBeenCalledWith({ workerAgent: "", orchestratorAgent: "" });
+		} finally { vi.unstubAllEnvs(); }
+	});
 	it("checks only the selected agent for launch readiness on a remote host", async () => {
 		remote.get.mockResolvedValue({ data: { agents: [agentReadiness("codex")] } });
 		remote.post.mockResolvedValue({ data: { agents: [agentReadiness("codex")] } });

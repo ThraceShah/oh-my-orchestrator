@@ -61,6 +61,7 @@ import {
 import { useModelCatalogAuthRecovery } from "../hooks/useModelCatalogAuthRecovery";
 import { useUiStore } from "../stores/ui-store";
 import { ModelCatalogNotice } from "./ModelCatalogNotice";
+import { Button } from "./ui/button";
 import { STANDALONE_WORKSPACE_ID, toAgentProvider } from "../types/workspace";
 import { CODER_PROVIDER, projectSandboxProvider } from "../lib/cloud-offering";
 import { type EffortAvailability } from "./settings/EffortPicker";
@@ -172,6 +173,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	hostId?: string;
 }) {
 	const { t } = useTranslation();
+	const isWebCoordinator = import.meta.env.VITE_AO_WEB === "1";
 	const queryClient = useQueryClient();
 	const remoteConnections = useConnectedHosts();
 	const hostConnected = !hostId || remoteConnections.includes(hostId);
@@ -221,7 +223,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const cloudOffering = useCloudOffering();
 	const cloudProjects = useCloudProjectsQuery();
 	const cloudProject = (cloudProjects.data ?? []).find((project) => project.id === projectId);
-	const isCloudProject = !hostId && Boolean(cloudProject);
+	const isCloudProject = !isWebCoordinator && !hostId && Boolean(cloudProject);
 	// Coder projects keep their own New Task dialog and start-up untouched.
 	const isCoderCloudProject = isCloudProject && projectSandboxProvider(cloudProject?.config, cloudOffering) === CODER_PROVIDER;
 	const isStandalone = projectId === STANDALONE_WORKSPACE_ID;
@@ -294,6 +296,27 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const createDaemonTask = useCallback(
 		async (input: CreateTaskInput): Promise<string> => {
 			try {
+				if (isWebCoordinator) {
+					if (hostId || input.projectId === STANDALONE_WORKSPACE_ID) throw new Error(t("newTask.selectProject"));
+					const request = {
+						projectId: input.projectId,
+						agent: input.agent,
+						model: input.model,
+						effort: input.effort,
+						brief: input.brief,
+						mode: input.mode,
+						attachments: input.attachments,
+					};
+					const body = { ...request, clientRequestId: input.clientRequestId };
+					const { data, error, response } = await apiClient.POST("/api/v1/orchestrators", {
+						headers: input.attachments?.length ? { "X-AO-Attachment-Upload": "1" } : undefined,
+						body,
+					});
+					if (error) throw new TaskCreateError(apiErrorMessage(error, t("newTask.unableToStart")), apiErrorCode(error), error.details, response.status);
+					if (!data?.orchestrator?.id) throw new Error(t("newTask.noSession"));
+					void queryClient.invalidateQueries({ queryKey: ["project-coordinator", input.projectId] });
+					return data.orchestrator.id;
+				}
 				const { data, error } = await (hostId ? clientForHost(hostId) : apiClient).POST("/api/v1/orchestrators/delegate", {
 					headers: input.attachments?.length ? { "X-AO-Attachment-Upload": "1" } : undefined,
 					body: {
@@ -337,7 +360,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 				throw err instanceof Error ? err : new Error(t("newTask.unableToStart"));
 			}
 		},
-		[hostId, queryClient, t],
+		[hostId, isWebCoordinator, queryClient, t],
 	);
 
 	const createStandaloneTask = useCallback(
@@ -375,8 +398,8 @@ export function useTaskLaunch({ projectId, hostId }: {
 
 	const createTask = useCallback(
 		(input: CreateTaskInput): Promise<string> =>
-			isStandalone ? createStandaloneTask(input) : isCloudProject ? createCloudTask(input) : createDaemonTask(input),
-		[isStandalone, isCloudProject, createStandaloneTask, createCloudTask, createDaemonTask],
+			isWebCoordinator ? createDaemonTask(input) : isStandalone ? createStandaloneTask(input) : isCloudProject ? createCloudTask(input) : createDaemonTask(input),
+		[isWebCoordinator, isStandalone, isCloudProject, createStandaloneTask, createCloudTask, createDaemonTask],
 	);
 
 	const projectQuery = useQuery({
@@ -395,7 +418,9 @@ export function useTaskLaunch({ projectId, hostId }: {
 	});
 	useEffect(() => {
 		const id = projectQuery.data?.id;
-		if (!id) return;
+		// A coordinator reads the registered service-host checkout. Preparing a
+		// worker worktree here would create work the human never requested.
+		if (!id || isWebCoordinator) return;
 		let client;
 		try {
 			client = hostId ? clientForHost(hostId) : apiClient;
@@ -427,7 +452,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 			setPreparedSessionId("");
 			if (token !== launchingPreparationRef.current) cancelTaskPreparation(token, hostId);
 		};
-	}, [hostId, projectQuery.data?.id]);
+	}, [hostId, isWebCoordinator, projectQuery.data?.id]);
 	const agentsQuery = useAgentReadinessQuery(true, hostId);
 	const { settings, error: settingsError } = useSettings(hostId);
 	// The composer preselects the agent and model a spawn would actually use
@@ -441,10 +466,12 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const projectConfig = (isCloudProject ? cloudProject?.config : projectQuery.data?.config) as
 		| {
 				worker?: { agent?: string; agentConfig?: { model?: string; mode?: string; effort?: string; permissions?: string } };
+				orchestrator?: { agent?: string; agentConfig?: { model?: string; mode?: string; effort?: string; permissions?: string } };
 				agentConfig?: { model?: string; mode?: string; effort?: string; permissions?: string };
 		  }
 		| undefined;
-	const projectWorkerAgent = projectConfig?.worker?.agent ?? "";
+	const projectRole = isWebCoordinator ? projectConfig?.orchestrator : projectConfig?.worker;
+	const projectWorkerAgent = projectRole?.agent ?? "";
 	const globalDefaultAgent = projectQuery.data?.agent ?? "";
 	const configuredProjectAgent = projectWorkerAgent || globalDefaultAgent;
 	const agentCatalog = agentsQuery.data;
@@ -464,8 +491,9 @@ export function useTaskLaunch({ projectId, hostId }: {
 		priorityRank: DEFAULT_AGENT_PRIORITY_RANK,
 		fallbackAgents: [],
 	}).find(isReadyAgent)?.id ?? "" : "";
+	const usableProjectDefault = !isWebCoordinator || agentCatalog?.agents.some((candidate) => candidate.id === configuredProjectAgent && isReadyAgent(candidate));
 	const configuredDefaultAgent = isStandalone ? readyFallbackAgent
-		: configuredProjectAgent || (isCloudProject ? readyCloudAgent : readyFallbackAgent);
+		: (usableProjectDefault ? configuredProjectAgent : "") || (isCloudProject ? readyCloudAgent : readyFallbackAgent);
 	const rememberedAgent = persistedPreferences?.lastAgent ?? "";
 	const availableAgents = isCloudProject ? cloudAgents : agentCatalog?.agents;
 	const rememberedAgentIsAvailable = Boolean(
@@ -491,10 +519,10 @@ export function useTaskLaunch({ projectId, hostId }: {
 		return "";
 	}, [isCloudProject, selectedAgent, cloudConnectionsQuery.data]);
 	const defaultWorkerModel =
-		projectConfig?.worker?.agentConfig?.model ?? projectConfig?.agentConfig?.model ?? "";
-	const defaultWorkerMode = projectConfig?.worker?.agentConfig?.mode ?? projectConfig?.agentConfig?.mode ?? "";
+		projectRole?.agentConfig?.model ?? projectConfig?.agentConfig?.model ?? "";
+	const defaultWorkerMode = projectRole?.agentConfig?.mode ?? projectConfig?.agentConfig?.mode ?? "";
 	const defaultWorkerEffort =
-		projectConfig?.worker?.agentConfig?.effort ?? projectConfig?.agentConfig?.effort ?? "";
+		projectRole?.agentConfig?.effort ?? projectConfig?.agentConfig?.effort ?? "";
 	const projectModelForSelectedAgent = selectedAgent === configuredProjectAgent
 		? defaultWorkerModel
 		: "";
@@ -845,7 +873,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const implicitEffort = inheritedEffort || effortModel?.defaultEffort || "";
 	const selectedAgentLabel = availableAgents?.find((item) => item.id === selectedAgent)?.label || selectedAgent;
 	useResetStaleProjectTuning({
-		projectId: isCloudProject || isStandalone ? undefined : projectQuery.data?.id,
+		projectId: isWebCoordinator || isCloudProject || isStandalone ? undefined : projectQuery.data?.id,
 		hostId,
 		agent: selectedAgent,
 		agentLabel: selectedAgentLabel,
@@ -863,7 +891,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	const usesChatPermissions = !isCloudProject && !requiresTuiFallback && settings?.defaultSessionMode === "chat";
 	const permissionDiscovery = useChatPermissionModesQuery(hostId, usesChatPermissions ? selectedAgent : undefined);
 	const chatPermissionModes = permissionDiscovery.data?.get(selectedAgent);
-	const projectPermissions = projectConfig?.worker?.agentConfig?.permissions ?? projectConfig?.agentConfig?.permissions;
+	const projectPermissions = projectRole?.agentConfig?.permissions ?? projectConfig?.agentConfig?.permissions;
 	const wantedApproval = approvalMode ?? (isCloudProject ? "bypass-permissions" : APPROVAL_MODES.includes(projectPermissions as ApprovalMode) ? projectPermissions as ApprovalMode : "auto");
 	// An inherited or stale choice cannot invent an ACP mode. Use the agent's
 	// normal approval behavior when it has no alternatives, never implicitly bypass.
@@ -946,6 +974,7 @@ export function useTaskLaunch({ projectId, hostId }: {
 	// and its default-Chat-to-TUI fallback once initial discovery settles.
 	const canSubmit =
 		hostConnected &&
+		(!isWebCoordinator || (!hostId && !isStandalone && !isCloudProject)) &&
 		Boolean(projectId) &&
 		!cloudCatalogLoading &&
 		(!usesChatPermissions || !permissionDiscovery.isPending) &&
@@ -1005,7 +1034,9 @@ export function useTaskLaunch({ projectId, hostId }: {
 		(cloudModelUnavailable(selectedModelOrMode) || projectModelUnavailable));
 	const modelWarning = isCloudProject
 		? cloudModelWarning ?? (localCatalogForCloud ? modelWarningText : undefined)
-		: modelAuthIssue && showModelNotice ? (
+		: modelAuthIssue && showModelNotice && isWebCoordinator ? (
+			<div role="status" className="flex items-center gap-2 text-xs text-warning"><span>{t("newTask.authorizeOnServer", { agent: selectedAgentLabel, defaultValue: "Authorize {{agent}} on the Orchestrator server, then refresh its models." })}</span><Button size="xs" variant="ghost" onClick={() => void refreshSelectedModels().catch(() => undefined)}>{t("newTask.modelNotice.retry")}</Button></div>
+		) : modelAuthIssue && showModelNotice ? (
 		<ModelCatalogNotice
 			agentLabel={selectedAgentLabel}
 			issue={modelAuthIssue}

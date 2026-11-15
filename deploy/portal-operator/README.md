@@ -2,7 +2,7 @@
 
 The portal serves the existing Orchestrator React renderer. It uses the same shell,
 sidebar, board, composer, conversation, and xterm components as the desktop build.
-`VITE_AO_WEB=1` enables a real browser connection to the control plane;
+`VITE_AO_WEB=1` enables the private browser interface and a real connection to the service host;
 `VITE_NO_ELECTRON=1` is preview/mock mode and must not be used for deployment.
 
 Build from the repository:
@@ -37,10 +37,36 @@ requests must have the same origin. `/internal/*`, fleet enrollment, and daemon
 shutdown are not forwarded. Fleet node summaries omit credentials and power
 commands. The Fleet dialog uses the original sidebar and dialog primitives.
 
-Native file pickers and opening local editors require the desktop application.
-The web home disables those picker actions and hides host import/update prompts.
-Cloning supports entering a destination on the server. The browser renders the
-control plane's real data; it does not create sample projects or sessions.
+Human work enters through each project's long-lived coordinator conversation.
+Initial choices are the service host's Agent, model and thinking level; the
+coordinator chooses subordinate workers and their Agents. Manual worker spawn,
+delegate, speculative workspace preparation and direct automation creation are
+blocked at the portal boundary. They remain daemon/CLI capabilities for the
+coordinator. The service-host daemon should use `AO_CLOUD_OFFERING=off` as well;
+private web independently hides SaaS sign-in and native-only controls.
+
+Folder and workspace selection uses the daemon's filesystem browser and import
+validation. Clone destinations refer to the service host. Local-only Git project
+import does not create or publish a GitHub repository. Agent installation and
+provider authorization remain manual on each machine. Browser preferences persist
+with validation, and unsupported Browser previews never display fabricated page
+content or passing tests. The renderer uses real data and creates no samples.
+
+Worker daemons must be upgraded alongside the service host. The control plane
+requires the advertised launch protocol version before dispatching full launch
+settings, so an older worker cannot silently ignore a model or thinking level.
+Each intended worker needs the same logical project registered with its own local
+checkout; the UI and coordinator report missing prerequisites without installing,
+cloning or transferring credentials.
+
+The Go executable alone does not include Claude's Chat adapter. Build the original
+runtime with `npm --prefix frontend run build:acp-runtime`, deploy its complete
+`resources/acp-runtime` directory with a Node binary for each target platform, and
+set `AO_ACP_RUNTIME_DIR` to that directory in the daemon service. The original build
+pins and checksums Node, patches the locked adapter, and excludes provider Agent
+executables. This installs AO infrastructure, not Claude or provider credentials.
+A missing adapter returns an explicit failed placement, never a successful task.
+Pi and other native Chat integrations still use their already-installed Agents.
 
 Verification:
 
@@ -53,6 +79,15 @@ npm test -- src/renderer/lib/web-mode.test.ts src/renderer/lib/api-client.test.t
 
 Proxy tests cover readiness, the application prefix, secret filtering, blocked
 operator plumbing, streamed SSE, upstream sandbox policies, origin checks, and
-terminal upgrade bytes. Live browser checks cover startup, Fleet node listing,
-and navigation into the original new-task composer. These checks do not launch
-an agent or prove a complete remote Chat/terminal task lifecycle.
+terminal upgrade bytes. Live browser checks cover startup, Fleet inventory, server
+folder browsing, no-origin local project import, coordinator configuration and
+actual xterm WebSocket frames. A separate isolated control/worker test launched a
+real coordinator, let it select and launch a Claude Chat worker, transferred the
+worker's durable completion report, and observed the coordinator acknowledge it.
+That test used separate daemon data directories on one host; deployment checks
+must separately verify the installed workers on their actual machines.
+
+Completed reports retain AO's existing five-minute settlement window. Transfer
+receipts acknowledge semantic delivery only after that window, and retries reuse
+the same receipt. The coordinator is instructed to finish its turn after dispatch
+and resume when the report arrives, rather than hold a polling shell open.

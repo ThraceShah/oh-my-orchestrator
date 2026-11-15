@@ -1806,11 +1806,21 @@ type SpawnOrchestratorRequest struct {
 	// ApprovalMode is an optional per-session override. The UI uses the explicit
 	// bypass value only after the user accepts an approval-less Chat fallback.
 	ApprovalMode domain.PermissionMode `json:"approvalMode,omitempty" enum:"default,accept-edits,auto,bypass-permissions"`
+	// Creation choices apply only to the project's first coordinator.
+	Agent       domain.AgentHarness `json:"agent,omitempty"`
+	Model       string              `json:"model,omitempty"`
+	Effort      *string             `json:"effort,omitempty"`
+	Brief       string              `json:"brief,omitempty"`
+	Attachments []AttachmentInput   `json:"attachments,omitempty"`
+	// Stable across retries of the same opening message. The server computes
+	// its payload fingerprint; the client cannot authorize a mismatched replay.
+	ClientRequestID string `json:"clientRequestId,omitempty"`
 }
 
 // SpawnOrchestratorResponse is the body of POST /api/v1/orchestrators.
 type SpawnOrchestratorResponse struct {
 	Orchestrator OrchestratorResponse `json:"orchestrator"`
+	Session      *SessionView         `json:"session,omitempty"`
 }
 
 // OrchestratorResponse is the minimal orchestrator read model returned after spawn.

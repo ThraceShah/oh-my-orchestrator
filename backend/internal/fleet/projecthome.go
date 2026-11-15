@@ -14,6 +14,7 @@ type ProjectConfigHomes struct {
 	}
 }
 
+// Home reads the legacy explicitly configured orchestrator placement.
 func (h ProjectConfigHomes) Home(ctx context.Context, id domain.ProjectID) (ProjectHome, error) {
 	if h.Projects == nil {
 		return ProjectHome{}, ErrHomeRequired

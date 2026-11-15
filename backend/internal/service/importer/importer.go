@@ -70,6 +70,9 @@ const importGitHubRepositoryConfigKey = "ao.import.githubRepository"
 type ImportValidationInput struct {
 	ImportKind string `json:"importKind" enum:"project,workspace" minLength:"1"`
 	Path       string `json:"path" minLength:"1"`
+	// LocalOnly imports a project without requiring or creating a Git remote.
+	// Git initialization and the initial commit still require explicit approval.
+	LocalOnly bool `json:"localOnly,omitempty"`
 }
 
 // GitPreparationInput is the body shape for POST /api/v1/imports/prepare-git.
@@ -82,6 +85,8 @@ type GitPreparationInput struct {
 	InitialCommitMsg string                          `json:"initialCommitMessage,omitempty"`
 	Repositories     []GitRepositoryPreparationInput `json:"repositories,omitempty"`
 	Stepwise         bool                            `json:"stepwise,omitempty"`
+	// LocalOnly retains the same local-project policy during each preparation step.
+	LocalOnly bool `json:"localOnly,omitempty"`
 }
 
 // GitHubRepositoryPreparation describes the GitHub repository AO should create for a project import.
@@ -184,6 +189,9 @@ func (m *Manager) Validate(ctx context.Context, in ImportValidationInput) (Impor
 	if importKind != ImportKindProject && importKind != ImportKindWorkspace {
 		return ImportValidationResult{}, apierr.Invalid("UNSUPPORTED_IMPORT_KIND", "Only project and workspace imports are supported.", map[string]any{"importKind": in.ImportKind})
 	}
+	if in.LocalOnly && importKind != ImportKindProject {
+		return ImportValidationResult{}, apierr.Invalid("LOCAL_ONLY_PROJECT_REQUIRED", "Local-only import is supported for individual projects.", nil)
+	}
 	path, normalizeErr := normalizeImportPath(in.Path)
 	if normalizeErr != nil {
 		return invalidImportResult(importKind, strings.TrimSpace(in.Path), "INVALID_PATH"), nil //nolint:nilerr // validation failures are reported in-band so the UI can show blocking errors
@@ -217,7 +225,11 @@ func (m *Manager) Validate(ctx context.Context, in ImportValidationInput) (Impor
 	}
 
 	root := inspectImportRepo(ctx, path)
-	if importKind == ImportKindProject {
+	if importKind == ImportKindProject && in.LocalOnly {
+		root.RequiredActions = slices.DeleteFunc(root.RequiredActions, func(action string) bool {
+			return action == GitPreparationActionSetRemote || action == GitPreparationActionCreateRemoteRepository
+		})
+	} else if importKind == ImportKindProject {
 		root.RequiredActions = addProjectRemoteRepositoryAction(root.RequiredActions)
 		if root.HasOrigin && root.HasCommit && importGitHubPreparationIncomplete(ctx, path) && !slices.Contains(root.RequiredActions, GitPreparationActionCreateRemoteRepository) {
 			root.RequiredActions = append(root.RequiredActions, GitPreparationActionCreateRemoteRepository)
@@ -289,7 +301,10 @@ func (m *Manager) PrepareGit(ctx context.Context, in GitPreparationInput) (GitPr
 	if importKind != ImportKindProject && importKind != ImportKindWorkspace {
 		return GitPreparationResult{}, apierr.Invalid("UNSUPPORTED_IMPORT_KIND", "Only project and workspace imports are supported.", map[string]any{"importKind": in.ImportKind})
 	}
-	validation, err := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: in.Path})
+	if in.LocalOnly && (strings.TrimSpace(in.RemoteURL) != "" || in.GitHubRepository != nil) {
+		return GitPreparationResult{}, apierr.Invalid("LOCAL_IMPORT_REMOTE_CONFLICT", "A local-only import cannot create or configure a remote repository.", nil)
+	}
+	validation, err := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: in.Path, LocalOnly: in.LocalOnly})
 	if err != nil {
 		return GitPreparationResult{}, err
 	}
@@ -330,7 +345,7 @@ preparation:
 			)
 			if actionErr := runGitPreparationAction(ctx, target.Status.RepoPath, action, target.Input); actionErr != nil {
 				events = append(events, GitPreparationEvent{RepoPath: target.Status.RepoPath, Action: action, State: GitPreparationEventError, Error: actionErr.Error()})
-				latest, _ := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: validation.Root.RepoPath})
+				latest, _ := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: validation.Root.RepoPath, LocalOnly: in.LocalOnly})
 				if importKind == ImportKindProject && action == GitPreparationActionCreateRemoteRepository && target.Input.GitHubRepository != nil {
 					latest.Root.RequiredActions = []string{GitPreparationActionCreateRemoteRepository}
 					latest.NextStep = ImportNextStepPrepareGit
@@ -343,7 +358,7 @@ preparation:
 			}
 		}
 	}
-	latest, err := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: validation.Root.RepoPath})
+	latest, err := m.Validate(ctx, ImportValidationInput{ImportKind: importKind, Path: validation.Root.RepoPath, LocalOnly: in.LocalOnly})
 	if err != nil {
 		return GitPreparationResult{}, err
 	}

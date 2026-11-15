@@ -51,6 +51,9 @@ type DelegateTaskOutcome struct {
 
 // PrepareTask starts the reversible worktree-only half of task creation.
 func (s *Service) PrepareTask(ctx context.Context, projectID domain.ProjectID) (string, error) {
+	if s.fleetPlace != nil {
+		return "", apierr.Invalid("WORKER_PREPARATION_REQUIRED", "Task workspaces are prepared on the owning worker after coordinator placement", nil)
+	}
 	project, err := s.requireProject(ctx, projectID)
 	if err != nil {
 		return "", err
@@ -84,7 +87,7 @@ func (s *Service) DelegateTask(ctx context.Context, in DelegateTaskInput) (Deleg
 	if in.RequestedMode != "" && !in.RequestedMode.Valid() {
 		return DelegateTaskOutcome{}, apierr.Invalid("INVALID_SESSION_MODE", "mode must be chat or tui", nil)
 	}
-	if in.Branch != "" && project.Kind.WithDefault() != domain.ProjectKindScratch {
+	if s.fleetPlace == nil && in.Branch != "" && project.Kind.WithDefault() != domain.ProjectKindScratch {
 		if err := s.requireUnusedTaskBranch(ctx, project, in.Branch); err != nil {
 			return DelegateTaskOutcome{}, err
 		}
@@ -95,7 +98,7 @@ func (s *Service) DelegateTask(ctx context.Context, in DelegateTaskInput) (Deleg
 	}
 
 	effort, effortOverride := optionalTuningValue(in.Effort)
-	worker, _, _, err := s.spawnWithTelemetry(ctx, ports.SpawnConfig{
+	cfg := ports.SpawnConfig{
 		ClientRequestID:   in.ClientRequestID,
 		ClientRequestHash: in.ClientRequestHash,
 		ProjectID:         in.ProjectID,
@@ -119,7 +122,17 @@ func (s *Service) DelegateTask(ctx context.Context, in DelegateTaskInput) (Deleg
 		// finishes starting in the background.
 		Async:           true,
 		TaskPreparation: in.TaskPreparation,
-	}, project)
+	}
+	if s.fleetPlace != nil {
+		// Legacy callers still reach this endpoint, but subordinate execution
+		// must never bypass the fleet and run on the coordinator's host.
+		worker, _, _, err := s.Spawn(ctx, cfg)
+		if err != nil {
+			return DelegateTaskOutcome{}, err
+		}
+		return DelegateTaskOutcome{WorkerID: worker.ID}, nil
+	}
+	worker, _, _, err := s.spawnWithTelemetry(ctx, cfg, project)
 	if err != nil {
 		return DelegateTaskOutcome{}, toSpawnAPIError(err)
 	}

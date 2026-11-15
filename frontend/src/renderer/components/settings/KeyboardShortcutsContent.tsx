@@ -1,5 +1,6 @@
 import { AlertCircle, Check, Keyboard, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2, X } from "@/components/app-icons";
 import { useTranslation } from "react-i18next";
+import { privateWebShortcutAvailable } from "../../lib/private-web";
 import type { TFunction } from "i18next";
 import { shortcutCategoryLabelKeys, shortcutLabelKeys } from "../../i18n/key-maps";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -226,6 +227,7 @@ export function KeyboardShortcutsContent({
 	const filteredShortcuts = useMemo(() => {
 		const needles = searchText(query).split(/\s+/).filter(Boolean);
 		return APP_SHORTCUTS.filter((shortcut) => {
+			if (!privateWebShortcutAvailable(shortcut.id)) return false;
 			// Dictation is in preview behind Developer mode.
 			if (shortcut.id === "dictate" && !developerMode) return false;
 			if (isSplitPaneShortcut(shortcut.id) && !splitPanes) return false;

@@ -14,6 +14,7 @@ import { clientForHost, labelForHost } from "../lib/host-clients";
 import { sessionNavigateTarget } from "../lib/navigate-to-session";
 import { openComposerModelPicker, toggleComposerDictation } from "../lib/composer-shortcuts";
 import { useSessionShortcut } from "../hooks/useAppShortcut";
+import { useProjectCoordinator } from "../hooks/useProjectCoordinator";
 import { CLOUD_PROJECT_KIND, STANDALONE_PROJECT_KIND, STANDALONE_WORKSPACE_ID } from "../types/workspace";
 import type { ApprovalMode, ChatConfigOption, ChatConfigOptionValue, ChatModel, ConversationSnapshot, TurnSettings } from "../types/conversation";
 import { readChatSettingsTemplate, readChatSkills } from "../lib/chat-settings-template";
@@ -36,8 +37,12 @@ import { cn } from "../lib/utils";
  * session; the page keeps the brief on screen and hands it to the session's own
  * chat, so starting a task reads as one continuous conversation.
  */
-export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?: string }) {
+export function NewChatPage({ projectId, hostId: requestedHostId }: { projectId: string; hostId?: string }) {
 	const { t } = useTranslation();
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
+	const hostId = isWeb ? undefined : requestedHostId;
+	const hasProject = projectId !== STANDALONE_WORKSPACE_ID;
+	const coordinator = useProjectCoordinator(hasProject ? projectId : undefined);
 	const navigate = useNavigate();
 	const router = useRouter();
 	const queryClient = useQueryClient();
@@ -72,6 +77,8 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 	const [reportedLoadError, setReportedLoadError] = useState<string>();
 	// Why the daemon refused a retry of a send whose first answer was lost.
 	const [refusedRetry, setRefusedRetry] = useState<string>();
+	const [activeCoordinatorId, setActiveCoordinatorId] = useState<string>();
+	useEffect(() => setActiveCoordinatorId(undefined), [projectId]);
 	// A fallback start keeps its request id until it is answered, so a retry after a
 	// lost response cannot create a second session.
 	const fallbackRequest = useRef<string | undefined>(undefined);
@@ -133,8 +140,8 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 			hostId,
 			models: providerOptions ? [] : task.chatModels,
 			settings,
-			configOptions: providerOptions,
-			showApprovalMode: !task.approvalModes || task.approvalModes.length > 0,
+			configOptions: isWeb && providerOptions ? providerOptions.filter((option) => option.id !== partitionConfigOptions(providerOptions).mode?.id) : providerOptions,
+			showApprovalMode: !isWeb && (!task.approvalModes || task.approvalModes.length > 0),
 			approvalModes: task.approvalModes,
 			// A Cloud task with no model picked runs the project's or the agent's
 			// default, as the New Task picker words it; it needs no choice.
@@ -166,6 +173,12 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 	// with its project and request, so the retry repeats exactly that request, even
 	// after a reload; the page returns to that project until it is resolved.
 	const pendingLaunch = readPendingLaunch(hostKey, draftScope);
+	useEffect(() => {
+		// Do not show fresh creation controls for a project that already has its
+		// coordinator. An uncertain first send must finish its idempotent retry.
+		if (!isWeb || !coordinator.data || pendingLaunch || echo) return;
+		void navigate({ ...sessionNavigateTarget(projectId, coordinator.data.id), replace: true });
+	}, [coordinator.data, echo, isWeb, navigate, pendingLaunch, projectId]);
 	useEffect(() => {
 		if (!pendingLaunch || pendingLaunch.projectId === projectId) return;
 		void navigate({
@@ -252,6 +265,7 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 		const brief = { clientMessageId, text, createdAt: new Date().toISOString() };
 		setEcho(brief);
 		setRefusedRetry(undefined);
+		setActiveCoordinatorId(undefined);
 		// Held still from Enter; replaced by the loaded bar once the page is ready.
 		setLaunched(saved?.settings ?? barRef.current);
 		try {
@@ -280,6 +294,12 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 			await openSession(sessionId, brief, settings, replay.mode ?? launch.effectiveInterface, target);
 		} catch (error) {
 			setEcho(undefined);
+			if (isWeb && error instanceof Error && "code" in error && error.code === "COORDINATOR_ALREADY_ACTIVE") {
+				const details = "details" in error ? error.details as Record<string, unknown> | undefined : undefined;
+				const value = details?.sessionId;
+				const id = Array.isArray(value) ? value[0] : value;
+				if (typeof id === "string") setActiveCoordinatorId(id);
+			}
 			// Only a refusal from the daemon is final: it returns the brief with the
 			// reason. A lost response, or a failure after the session may have started,
 			// stays uncertain, so the composer retries with the same request id. A refused
@@ -331,7 +351,13 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 	const frozen = pending || Boolean(pendingLaunch);
 	const frozenSettings = launched ?? pendingLaunch?.settings;
 	pendingRef.current = pending;
-	const notice = pending ? null : task.error && (task.errorAction || fallbackFailed) ? (
+	const notice = isWeb && !hasProject ? (
+		<p className="px-1 text-xs text-muted-foreground">{t("newTask.coordinatorProjectRequired", { defaultValue: "Choose or add a project to open its coordinator. The coordinator assigns work to your workers." })}</p>
+	) : isWeb && coordinator.isError ? (
+		<div role="alert" className="flex items-center gap-2 px-1 text-xs text-destructive"><span>{apiErrorMessage(coordinator.error, "Could not find the project coordinator.")}</span><Button size="sm" variant="ghost" onClick={() => void coordinator.refetch()}>{t("common.retry", { defaultValue: "Retry" })}</Button></div>
+	) : activeCoordinatorId ? (
+		<div role="alert" className="flex items-center gap-2 px-1 text-xs text-muted-foreground"><span>{t("newTask.coordinatorAlreadyActive", { defaultValue: "This project's coordinator opened elsewhere. Your draft has been kept; it was not sent." })}</span><Button size="sm" variant="ghost" onClick={() => void navigate(sessionNavigateTarget(projectId, activeCoordinatorId))}>{t("home.openCoordinator", { defaultValue: "Open project coordinator" })}</Button></div>
+	) : pending ? null : task.error && (task.errorAction || fallbackFailed) ? (
 		<div role="alert" className="flex items-center gap-2 px-1 text-xs text-destructive">
 			<span>{task.error}</span>
 			{task.errorAction ? <div className="flex items-center gap-2">
@@ -384,8 +410,8 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 				// The pending launch below tracks its own unanswered send.
 				parkUnsentSends={false}
 				// The session is titled after its brief, so the tab already reads that way.
-				sessionTitle={echo ? echo.text.trim().slice(0, 100) : t("command.newTask")}
-				sessionRole="worker"
+				sessionTitle={echo ? echo.text.trim().slice(0, 100) : t(isWeb ? "shell.openCoordinator" : "command.newTask")}
+				sessionRole={isWeb ? "orchestrator" : "worker"}
 				hideHeader
 				centerInWindow
 				localEchos={echo ? [echo] : undefined}
@@ -400,15 +426,16 @@ export function NewChatPage({ projectId, hostId }: { projectId: string; hostId?:
 				composerTray={
 					<>
 						<NewChatProjectPicker projectId={projectId} hostId={hostId} disabled={frozen} onChange={(project) => void navigate({ to: "/new", search: { project, host: hostId }, replace: true })} />
-						{hostId ? null : <MobileConnected />}
+						{hostId || isWeb ? null : <MobileConnected />}
 					</>
 				}
 				onSend={send}
+				composerLockedPlaceholder={isWeb && !hasProject ? t("newTask.selectProject") : isWeb && (!coordinator.isSuccess || (coordinator.data && !pendingLaunch)) ? t("newTask.coordinatorLoading", { defaultValue: "Opening project coordinator…" }) : undefined}
 				busy={pending}
 				// The Cloud session started for this task is still coming up.
 				// The session's own composer controls from the start: the same bar, held
 				// still once sent, with the agent at the top of the model menu.
-				draftSettings={frozen ? (frozenSettings ? <LaunchSettingsBar {...frozenSettings} /> : null) : (
+				draftSettings={isWeb && (!hasProject || !coordinator.isSuccess || (coordinator.data && !pendingLaunch)) ? null : frozen ? (frozenSettings ? <LaunchSettingsBar {...frozenSettings} /> : null) : (
 					<>
 						<TurnSettingsBar
 							models={barSettings.models}
@@ -577,20 +604,21 @@ function NewChatProjectPicker({ projectId, hostId, disabled, onChange }: { proje
 	const workspaces = hostId ? remoteWorkspaces.filter((workspace) => workspace.hostId === hostId) : localWorkspaces;
 	// A Cloud project's page lists Cloud projects beside local ones; a local
 	// project's page lists local projects only, as it always has.
-	const onCloudProject = workspaces.some((workspace) => workspace.id === projectId && workspace.kind === CLOUD_PROJECT_KIND);
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
+	const onCloudProject = !isWeb && workspaces.some((workspace) => workspace.id === projectId && workspace.kind === CLOUD_PROJECT_KIND);
 	const projects = workspaces.filter(
 		(workspace) => workspace.id !== STANDALONE_WORKSPACE_ID && workspace.kind !== STANDALONE_PROJECT_KIND &&
 			(onCloudProject || workspace.kind !== CLOUD_PROJECT_KIND),
 	);
 	const cloudProjectIds = new Set(projects.filter((project) => project.kind === CLOUD_PROJECT_KIND).map((project) => project.id));
 	const projectOptions = [
-		{ value: STANDALONE_WORKSPACE_ID, label: t("standalone.workspaceName") },
+		...(!isWeb ? [{ value: STANDALONE_WORKSPACE_ID, label: t("standalone.workspaceName") }] : []),
 		...projects.map((project) => ({ value: project.id, label: project.name })),
 	];
 	// A project that is not (or not yet) listed, such as one still loading or deleted,
 	// reads as unselected rather than as the scratchpad.
 	const selectedProjectName = projectId === STANDALONE_WORKSPACE_ID
-		? t("standalone.workspaceName")
+		? t(isWeb ? "newTask.selectProject" : "standalone.workspaceName")
 		: projects.find((project) => project.id === projectId)?.name ?? t("newTask.selectProject");
 	const hostLabel = hostId ? labelForHost(hostId) ?? hostId : undefined;
 	const requestCreateProject = useUiStore((state) => state.requestCreateProject);

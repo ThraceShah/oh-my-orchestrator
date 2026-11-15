@@ -133,7 +133,7 @@ func TestSpawnClaimPRWiring(t *testing.T) {
 	if !strings.Contains(out, "claimed https://github.com/oh-my-orchestrator/oh-my-orchestrator/pull/142") {
 		t.Fatalf("output missing claimed label: %s", out)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -176,7 +176,7 @@ func TestSpawnClaimPR_Draft(t *testing.T) {
 		t.Fatalf("output missing claimed label: %s", out)
 	}
 	// No rollback: the draft claim succeeded.
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -216,7 +216,7 @@ func TestSpawnClaimPR_GitLab(t *testing.T) {
 	if !strings.Contains(out, "claimed https://gitlab.com/castai/ctxd/-/merge_requests/9") {
 		t.Fatalf("output missing claimed label: %s", out)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-9/pr/claim"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -264,7 +264,7 @@ func TestSpawnClaimPRFailureRollsBackSession(t *testing.T) {
 	if sessions["demo-10"] {
 		t.Fatalf("spawned session still present after claim rollback: %#v", sessions)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-10/pr/claim", "POST /api/v1/sessions/demo-10/rollback"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "POST /api/v1/sessions/demo-10/pr/claim", "POST /api/v1/sessions/demo-10/rollback"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -383,7 +383,7 @@ func TestSpawnResolvesProjectFromEnvAndDefaultAgent(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" || req.DisplayName != "worker" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -423,7 +423,7 @@ func TestSpawnResolvesProjectFromAOSessionID(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" || req.ParentSessionID != "demo-1" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/sessions/demo-1", "GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/sessions/demo-1", "GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -536,7 +536,7 @@ func TestSpawnStandaloneOmitsProject(t *testing.T) {
 	if req.ProjectID != "" || req.Harness != "codex" || req.Kind != "worker" || req.Branch != "" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -682,7 +682,7 @@ func TestSpawnTargetedReadinessAllowsAuthorizedAgent(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -722,7 +722,7 @@ func TestSpawnUnauthorizedReadinessWarnsAndAllows(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -762,7 +762,7 @@ func TestSpawnUnknownAuthReadinessWarnsAndAllows(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -791,7 +791,7 @@ func TestSpawnUnsupportedAgentReadinessBlocks(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "agent \"unknown\" is not supported") {
 		t.Fatalf("err=%v, want unsupported", err)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -819,7 +819,7 @@ func TestSpawnNotInstalledAgentReadinessBlocks(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "agent \"codex\" needs install") {
 		t.Fatalf("err=%v, want needs install", err)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -859,7 +859,7 @@ func TestSpawnInstalledWithUnknownAuthWarnsAndAllows(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -899,7 +899,7 @@ func TestSpawnUnknownInstallationWarnsAndAllows(t *testing.T) {
 	if req.ProjectID != "demo" || req.Harness != "codex" {
 		t.Fatalf("spawn request = %#v", req)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -928,7 +928,7 @@ func TestSpawnReadinessServerErrorBlocks(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "probe failed (PROBE_FAILED) [request req-1]") {
 		t.Fatalf("err=%v, want probe server error", err)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}
@@ -1226,7 +1226,7 @@ func TestSpawnWaitsForBackgroundStart(t *testing.T) {
 	if !strings.Contains(out, "spawned session demo-9") || !strings.Contains(out, "(working)") {
 		t.Fatalf("output = %q, want the started session's status", out)
 	}
-	want := []string{"GET /api/v1/projects/demo", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "GET /api/v1/sessions/demo-9", "GET /api/v1/sessions/demo-9"}
+	want := []string{"GET /api/v1/projects/demo", "GET /api/v1/fleet/nodes", "POST /api/v1/agents/readiness/ensure", "POST /api/v1/sessions", "GET /api/v1/sessions/demo-9", "GET /api/v1/sessions/demo-9"}
 	if !reflect.DeepEqual(requests, want) {
 		t.Fatalf("requests=%#v want %#v", requests, want)
 	}

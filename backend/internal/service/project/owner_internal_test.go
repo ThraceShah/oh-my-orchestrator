@@ -10,8 +10,8 @@ func TestGithubOwner(t *testing.T) {
 		want   string
 	}{
 		{"scp-style", "git@github.com:aoagents/agent-orchestrator.git", "aoagents"},
-		{"https", "https://github.com/oh-my-orchestrator/oh-my-orchestrator.git", "aoagents"},
-		{"https-no-suffix", "https://github.com/oh-my-orchestrator/oh-my-orchestrator", "aoagents"},
+		{"https", "https://github.com/oh-my-orchestrator/oh-my-orchestrator.git", "oh-my-orchestrator"},
+		{"https-no-suffix", "https://github.com/oh-my-orchestrator/oh-my-orchestrator", "oh-my-orchestrator"},
 		{"http", "http://github.com/octocat/hello", "octocat"},
 		{"ssh-url", "ssh://git@github.com/octocat/hello.git", "octocat"},
 		{"git-proto", "git://github.com/octocat/hello.git", "octocat"},

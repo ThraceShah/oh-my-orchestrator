@@ -25,6 +25,7 @@ type FleetController struct {
 	Svc FleetService
 }
 
+// Register mounts operator-only fleet routes on the daemon's loopback router.
 func (c *FleetController) Register(r chi.Router) {
 	// Loopback only. The fleet enrollment token is a credential, and these
 	// routes are operator plumbing rather than part of the mobile API, so they

@@ -16,6 +16,7 @@ type Command struct {
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
 
+// Worker command kinds identify operations on the authenticated link.
 const (
 	CommandSpawn   = "spawn"
 	CommandStop    = "stop"
@@ -36,6 +37,7 @@ type Event struct {
 	At        time.Time       `json:"at"`
 }
 
+// Worker event kinds identify execution and conversation observations.
 const (
 	EventStarted     = "started"
 	EventFailed      = "failed"
@@ -66,6 +68,7 @@ type link struct {
 	cancel context.CancelFunc
 }
 
+// NewHub creates the connection registry and inbound event queue.
 func NewHub() *Hub {
 	return &Hub{nodes: map[string]*link{}, events: make(chan Event, 64), terms: map[string]chan TerminalMessage{}, replies: map[string]chan Event{}}
 }
@@ -96,6 +99,7 @@ func (h *Hub) Detach(nodeID string, conn Conn) {
 	}
 }
 
+// Connected reports whether a node has an attached worker link.
 func (h *Hub) Connected(nodeID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()

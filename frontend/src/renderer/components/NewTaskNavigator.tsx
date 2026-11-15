@@ -28,9 +28,11 @@ export function NewTaskNavigator() {
 	useEffect(() => {
 		if (!newTaskRequest || newTaskRequest.nonce === lastNonce.current) return;
 		lastNonce.current = newTaskRequest.nonce;
-		const { projectId, hostId } = newTaskRequest;
+		const isWeb = import.meta.env.VITE_AO_WEB === "1";
+		const { projectId } = newTaskRequest;
+		const hostId = isWeb ? undefined : newTaskRequest.hostId;
 		const cloudProject = hostId ? undefined : cloudProjects?.find((project) => project.id === projectId);
-		if (cloudProject && projectSandboxProvider(cloudProject.config, cloudOffering) === CODER_PROVIDER) {
+		if (!isWeb && cloudProject && projectSandboxProvider(cloudProject.config, cloudOffering) === CODER_PROVIDER) {
 			// An open dialog keeps its form rather than retargeting to another project.
 			setDialog((current) => current.open ? current : { open: true, projectId, hostId });
 			return;

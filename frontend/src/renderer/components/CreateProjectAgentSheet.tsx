@@ -130,6 +130,7 @@ export function CreateProjectAgentSheet({
 	shake = false,
 }: CreateProjectAgentSheetProps) {
 	const { t } = useTranslation();
+	const isWeb = import.meta.env.VITE_AO_WEB === "1";
 	// Settings opens as a page in the center pane; step aside so it is not hidden behind this modal.
 	const settingsOpen = useUiStore((state) => state.settingsModal?.scope === "global");
 	const [isExiting, setIsExiting] = useState(false);
@@ -142,8 +143,8 @@ export function CreateProjectAgentSheet({
 		displayedError.current = error;
 		displayedOnBack.current = onBack;
 	}
-	const agentsQuery = useAgentReadinessQuery(contentOpen && connected, hostId);
-	useEnsureAgentReadiness({ enabled: contentOpen && connected, hostId });
+	const agentsQuery = useAgentReadinessQuery(!isWeb && contentOpen && connected, hostId);
+	useEnsureAgentReadiness({ enabled: !isWeb && contentOpen && connected, hostId });
 	const agents = agentsQuery.data;
 	const agentOptions = useMemo(() => agents?.agents ?? [], [agents]);
 	const selectableAgents = useMemo(() => hostId ? agentOptions.filter(isLaunchableAgent) : agentOptions, [agentOptions, hostId]);
@@ -165,7 +166,7 @@ export function CreateProjectAgentSheet({
 		() => (workspacesQuery.data ?? []).flatMap((workspace) => workspace.sessions),
 		[workspacesQuery.data],
 	);
-	const isLoadingAgents = connected && agents === undefined && agentsQuery.isFetching;
+	const isLoadingAgents = !isWeb && connected && agents === undefined && agentsQuery.isFetching;
 	const agentsError = !connected ? t("remote.connectBeforeStart") : agentsQuery.isError
 		? agentsQuery.error instanceof Error
 			? agentsQuery.error.message
@@ -178,16 +179,16 @@ export function CreateProjectAgentSheet({
 	const [orchestratorAgentTouched, setOrchestratorAgentTouched] = useState(false);
 	useEnsureAgentReadiness({
 		agentIds: [workerAgent, orchestratorAgent],
-		enabled: contentOpen && connected && (workerAgent !== "" || orchestratorAgent !== ""),
+		enabled: !isWeb && contentOpen && connected && (workerAgent !== "" || orchestratorAgent !== ""),
 		hostId,
 		purpose: hostId ? "launch" : "display",
 	});
 	const isBusy = isCreating || isInitializing;
 	const [intake, setIntake] = useState<IntakeForm>(EMPTY_INTAKE);
 	const { settings } = useSettings(hostId);
-	const intakeVisible = !!settings?.trackerIntakeEnabled;
+	const intakeVisible = !isWeb && !!settings?.trackerIntakeEnabled;
 	const intakeIncomplete = intakeVisible && intakeNeedsRule(intake);
-	const canSubmit =
+	const canSubmit = isWeb ? connected && !isBusy :
 		canSubmitProjectSetup({
 			workerAgent,
 			orchestratorAgent,
@@ -275,7 +276,7 @@ export function CreateProjectAgentSheet({
 					{preparedClonePath ? <p className="px-4 pt-3 text-[12px] text-muted-foreground">{t("createProject.cloneReady", { path: preparedClonePath })}</p> : null}
 					<ProjectSetupFormView
 						agentControls={{
-							worker: (
+							worker: isWeb ? <p className="text-xs text-muted-foreground sm:col-span-2">{t("createProject.coordinatorNext", { defaultValue: "Add this server project, then choose the coordinator's Agent, model and thinking level. The coordinator chooses its workers." })}</p> : (
 								<RequiredAgentField
 									id="newProjectWorkerAgent"
 									label={t("createProject.workerAgent")}
@@ -292,7 +293,7 @@ export function CreateProjectAgentSheet({
 									}}
 								/>
 							),
-							orchestrator: (
+							orchestrator: isWeb ? null : (
 								<RequiredAgentField
 									id="newProjectOrchestratorAgent"
 									label={t("createProject.orchestratorAgent")}
@@ -311,7 +312,7 @@ export function CreateProjectAgentSheet({
 							),
 						}}
 						agents={{
-							error: displayError,
+							error: isWeb ? null : displayError,
 							loading: isLoadingAgents,
 							loadingMessage: t("createProject.loadingAgents"),
 							onRetry: () => void agentsQuery.refetch(),
@@ -348,7 +349,7 @@ export function CreateProjectAgentSheet({
 							) : null
 						}
 						onSubmit={() =>
-							void onSubmit({ workerAgent, orchestratorAgent, trackerIntake: intakeVisible ? buildIntake(intake) : undefined })
+							void onSubmit(isWeb ? { workerAgent: "", orchestratorAgent: "" } : { workerAgent, orchestratorAgent, trackerIntake: intakeVisible ? buildIntake(intake) : undefined })
 						}
 						setupNotice={
 							repositorySetupNeeded
@@ -374,7 +375,7 @@ export function CreateProjectAgentSheet({
 												: t("createProject.creating")
 											: action === "clone"
 												? t("createProject.clone")
-												: kind === "workspace"
+												: isWeb ? t("createProject.addServerProject", { defaultValue: "Add project" }) : kind === "workspace"
 													? t("createProject.createWorkspaceAndStart")
 													: t("createProject.createAndStart")
 								}

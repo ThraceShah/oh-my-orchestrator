@@ -301,14 +301,12 @@ function HomePageContent() {
 							/>
 							<HomeActionCard
 								icon={<FolderOpen />}
-								label={t("createProject.openLocal")}
-								disabled={isWeb}
+								label={isWeb ? t("home.openServerFolder", { defaultValue: "Open a server folder" }) : t("createProject.openLocal")}
 								onClick={() => requestSource("local")}
 							/>
 							<HomeActionCard
 								icon={<Folders />}
-								label={t("createProject.addWorkspace")}
-								disabled={isWeb}
+								label={isWeb ? t("home.openServerWorkspace", { defaultValue: "Open a server workspace" }) : t("createProject.addWorkspace")}
 								onClick={() => requestSource("workspace")}
 							/>
 							{/* Cloud is on for everyone a control plane is configured for. */}
@@ -321,15 +319,15 @@ function HomePageContent() {
 							) : (
 								<HomeActionCard
 									icon={<MessageSquarePlus />}
-									label={t("home.newStandaloneAgent")}
-									onClick={() => requestNewTask(STANDALONE_WORKSPACE_ID)}
+									label={isWeb ? t("home.openCoordinator", { defaultValue: "Open project coordinator" }) : t("home.newStandaloneAgent")}
+									onClick={() => isWeb ? (recentProjects.length ? requestNewTask(recentProjects[0].id) : useUiStore.getState().requestCreateProject()) : requestNewTask(STANDALONE_WORKSPACE_ID)}
 								/>
 							)}
 						</div>
 
 						{isWeb ? (
 							<p className="text-xs text-muted-foreground">
-								{t("home.webFolderRequirement", { defaultValue: "Open local folders and workspaces in the Orchestrator desktop app on the server. Cloned repositories and standalone agents run on the server." })}
+								{t("home.webCoordinatorDescription", { defaultValue: "Projects are read on the server. Your project coordinator assigns tasks to the available workers." })}
 							</p>
 						) : null}
 
@@ -376,7 +374,7 @@ function HomePageContent() {
 						await createProject(input);
 						if (firstRunStatus === "pending") finishFirstRunPrompt("clone");
 					}}
-					onCreateStandaloneAgent={() => requestNewTask(STANDALONE_WORKSPACE_ID)}
+					onCreateStandaloneAgent={isWeb ? undefined : () => requestNewTask(STANDALONE_WORKSPACE_ID)}
 					onInitializeProject={initializeProjectRepository}
 					onOpenExistingProject={openExistingProject}
 					sourceSignal={sourceSignal}

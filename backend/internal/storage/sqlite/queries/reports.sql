@@ -118,3 +118,10 @@ UPDATE reports
 SET delivery_state = 'pending', claim_token = '', claimed_at = NULL,
     last_error = 'delivery claim recovered after daemon restart'
 WHERE delivery_state = 'claimed';
+
+-- name: AcknowledgeFleetReport :execrows
+UPDATE reports
+SET delivery_state = 'acknowledged', claim_token = sqlc.arg(claim_token),
+    claimed_at = sqlc.arg(acknowledged_at), acknowledged_at = sqlc.arg(acknowledged_at)
+WHERE id = sqlc.arg(id) AND session_id = sqlc.arg(session_id)
+  AND delivery_state <> 'acknowledged';

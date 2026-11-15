@@ -17,6 +17,7 @@ import { ArrowRight } from "@/components/app-icons";
 import { useTerminalShellStore } from "../../stores/terminal-shell-store";
 import { checkTerminalShellPath, useTerminalShells } from "../../hooks/useTerminalShells";
 import { DefaultCloudSandboxSection } from "./DefaultCloudSandboxRow";
+import { isPrivateWeb } from "../../lib/private-web";
 import { SettingsOptionMenu, type SettingsOption } from "./SettingsOptionMenu";
 import { SettingsInlineInput, SettingsRow } from "./SettingsRow";
 import { SettingsSection } from "./SettingsSection";
@@ -415,7 +416,7 @@ export function GeneralSettingsSection({
 						/>
 					</div>
 				</SettingsRow>
-				{isMacPlatform() && <WindowTranslucencyRow />}
+				{!isPrivateWeb() && isMacPlatform() && <WindowTranslucencyRow />}
 				{newSidebarDesign && (
 					<SettingsRow label={t("settings.projectAvatars")} description={t("settings.projectAvatars.description")}>
 						<Switch aria-label={t("settings.projectAvatars")} checked={projectAvatars} onCheckedChange={setProjectAvatars} />
@@ -453,7 +454,7 @@ export function GeneralSettingsSection({
 			{/* Sessions */}
 			<SettingsSection title={t("settings.sessions")} grouped>
 				<SessionInterfaceRow />
-				<DefaultEditorRow />
+				{!isPrivateWeb() && <DefaultEditorRow />}
 				<SettingsRow label={t("settings.chatSendKey.label")}>
 					<SettingsOptionMenu
 						aria-label={t("settings.chatSendKey.label")}
@@ -498,12 +499,12 @@ export function GeneralSettingsSection({
 				</SettingsRow>
 			</SettingsSection>
 
-			<DefaultCloudSandboxSection />
+			{!isPrivateWeb() && <DefaultCloudSandboxSection />}
 
-			<SettingsSection title={t("settings.privacy")} grouped>
+			{!isPrivateWeb() && <SettingsSection title={t("settings.privacy")} grouped>
 				<TelemetryEventsRow />
 				<AnalyticsRow />
-			</SettingsSection>
+			</SettingsSection>}
 
 			{/* Advanced */}
 			<SettingsSection title={t("settings.advanced")} grouped>
@@ -515,12 +516,12 @@ export function GeneralSettingsSection({
 					/>
 				</SettingsRow>
 				{developerMode && <DiagnosticsRow />}
-				<CliLinkSettings enabled={developerMode} />
-				<CliShadowSettingsRow />
+				{!isPrivateWeb() && <CliLinkSettings enabled={developerMode} />}
+				{!isPrivateWeb() && <CliShadowSettingsRow />}
 				{developerMode && <SideChatsRow />}
 				{developerMode && <SplitPanesRow />}
 				{developerMode && <NewSidebarDesignRow />}
-				{developerMode && <ChromeAgentsRow />}
+				{!isPrivateWeb() && developerMode && <ChromeAgentsRow />}
 			</SettingsSection>
 		</>
 	);

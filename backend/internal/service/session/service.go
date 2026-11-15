@@ -263,6 +263,7 @@ type Service struct {
 	// set. Nil means this daemon has no fleet, so those fields are rejected.
 	fleetPlace             func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)
 	fleetBoard             func(context.Context) ([]domain.Session, error)
+	fleetSupervision       FleetSupervision
 	fleetSend              func(context.Context, string, string) (bool, error)
 	titleRefinementSlots   chan struct{}
 	titleRefinementMu      sync.Mutex
@@ -388,6 +389,9 @@ func NewWithDeps(d Deps) *Service {
 // a daemon that is not running a fleet, which keeps ordinary spawns local.
 func (s *Service) SetFleetPlacement(place func(context.Context, ports.SpawnConfig) (domain.Session, int, int, error)) {
 	s.fleetPlace = place
+	if manager, ok := s.manager.(interface{ SetFleetCoordinator(bool) }); ok {
+		manager.SetFleetCoordinator(place != nil)
+	}
 }
 
 // SetFleetBoard adds sessions that live on other machines to the control
@@ -410,6 +414,9 @@ func (s *Service) SetUsageArchiveFlush(flush func(context.Context)) {
 // Spawn creates a session and returns the API-facing read model plus
 // ephemeral prompt size measurements.
 func (s *Service) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Session, int, int, error) {
+	if cfg.Kind == "" {
+		cfg.Kind = domain.KindWorker
+	}
 	if rec, found, err := s.replayClientRequest(ctx, cfg.ClientRequestID, cfg.ClientRequestHash); err != nil {
 		return domain.Session{}, 0, 0, err
 	} else if found {
@@ -427,20 +434,17 @@ func (s *Service) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 			return domain.Session{}, 0, 0, apierr.Invalid("FLEET_NOT_CONFIGURED", "This daemon is not a fleet control plane, so nodeId and platform are not available", nil)
 		}
 	}
-	// A control plane does not run agents. Every spawn, including one that
-	// names no node, is placed on a worker. A daemon without a fleet keeps
-	// creating the session locally.
-	if s.fleetPlace != nil {
-		if cfg.Kind == domain.KindOrchestrator {
-			existing, err := s.activeOrchestrators(ctx, cfg.ProjectID)
-			if err != nil {
-				return domain.Session{}, 0, 0, err
-			}
-			if len(existing) > 0 {
-				return newestSession(existing), 0, 0, nil
-			}
+	// The service host owns the human-facing coordinator. Only subordinate
+	// workers use fleet placement; the control node is never a worker candidate.
+	if cfg.Kind == domain.KindOrchestrator && (cfg.NodeID != "" || cfg.Platform != "") {
+		return domain.Session{}, 0, 0, apierr.Invalid("COORDINATOR_LOCAL_ONLY", "The project coordinator runs on the service host", nil)
+	}
+	if s.fleetPlace != nil && cfg.Kind == domain.KindWorker {
+		prepared, err := s.prepareFleetSpawn(ctx, cfg)
+		if err != nil {
+			return domain.Session{}, 0, 0, err
 		}
-		return s.fleetPlace(ctx, cfg)
+		return s.fleetPlace(ctx, prepared)
 	}
 	if cfg.Kind == domain.KindOrchestrator {
 		cfg.Async = true
@@ -485,6 +489,13 @@ func (s *Service) spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		if cfg.Harness == "" {
 			return domain.Session{}, 0, 0, apierr.Invalid("HARNESS_REQUIRED", "harness is required for a standalone session", nil)
 		}
+	}
+	if cfg.Kind == domain.KindOrchestrator && s.fleetPlace != nil {
+		checkout, err := s.coordinatorCheckout(project)
+		if err != nil {
+			return domain.Session{}, 0, 0, err
+		}
+		cfg.ExistingCheckout = checkout
 	}
 	if s.agentReadiness != nil && cfg.Harness != "" {
 		readiness, err := s.agentReadiness.EnsureAgentReadiness(ctx, string(cfg.Harness), domain.AgentReadinessPurposeLaunch)
@@ -888,6 +899,10 @@ func (s *Service) SpawnOrchestrator(
 	requestedMode domain.SessionMode,
 	approval domain.PermissionMode,
 ) (domain.Session, error) {
+	return s.spawnCoordinator(ctx, projectID, clean, requestedMode, approval, nil)
+}
+
+func (s *Service) spawnCoordinator(ctx context.Context, projectID domain.ProjectID, clean bool, requestedMode domain.SessionMode, approval domain.PermissionMode, input *CoordinatorStartInput) (domain.Session, error) {
 	project, err := s.requireProject(ctx, projectID)
 	if err != nil {
 		return domain.Session{}, err
@@ -906,6 +921,19 @@ func (s *Service) SpawnOrchestrator(
 	defer cancelBudget()
 	unlock := s.lockOrchestratorProject(projectID)
 	defer unlock()
+
+	if input != nil && input.ClientRequestID != "" {
+		rec, found, err := s.replayClientRequest(ctx, input.ClientRequestID, input.ClientRequestHash)
+		if err != nil {
+			return domain.Session{}, err
+		}
+		if found {
+			if rec.ProjectID != projectID || rec.Kind != domain.KindOrchestrator {
+				return domain.Session{}, apierr.Conflict("CLIENT_REQUEST_CONFLICT", "Request belongs to another conversation", nil)
+			}
+			return s.toSession(ctx, rec)
+		}
+	}
 
 	mode := requestedMode
 	if clean {
@@ -944,20 +972,32 @@ func (s *Service) SpawnOrchestrator(
 			return domain.Session{}, err
 		}
 		if len(existing) > 0 {
-			return newestSession(existing), nil
+			current := newestSession(existing)
+			if input != nil && (input.Brief != "" || len(input.Attachments) > 0) {
+				return domain.Session{}, apierr.Conflict("COORDINATOR_ALREADY_ACTIVE", "Open the existing coordinator and send your message there", map[string]any{"sessionId": current.ID, "projectId": current.ProjectID})
+			}
+			return current, nil
 		}
 	}
-	sess, _, _, err := s.spawn(ctx, ports.SpawnConfig{
-		ProjectID:     projectID,
-		Kind:          domain.KindOrchestrator,
-		Async:         true,
-		RequestedMode: mode,
-		AgentConfig: ports.AgentConfig{
-			Permissions: approval,
-		},
-	})
+	cfg := ports.SpawnConfig{
+		ProjectID: projectID, Kind: domain.KindOrchestrator, Async: true,
+		RequestedMode: mode, AgentConfig: ports.AgentConfig{Permissions: approval},
+	}
+	if input != nil {
+		cfg.Harness = input.Harness
+		cfg.AgentConfig.Model = input.Model
+		cfg.AgentConfig.Effort, cfg.EffortOverride = optionalTuningValue(input.Effort)
+		cfg.Prompt = input.Brief
+		cfg.Attachments = input.Attachments
+		cfg.ClientRequestID = input.ClientRequestID
+		cfg.ClientRequestHash = input.ClientRequestHash
+	}
+	sess, _, _, err := s.spawn(ctx, cfg)
 	if err != nil {
 		return domain.Session{}, err
+	}
+	if input != nil && input.Harness != "" {
+		project.Config.Orchestrator.Harness = input.Harness
 	}
 	if err := s.verifyOrchestratorReplacement(project, sess); err != nil {
 		return domain.Session{}, err
@@ -990,7 +1030,7 @@ func (s *Service) verifyOrchestratorReplacement(project domain.ProjectRecord, se
 		return orchestratorReplacementUnverified("new session %s uses harness %q, want %q", sess.ID, sess.Harness, expected)
 	}
 	expectedBranch := sessionmanager.DefaultOrchestratorBranch(serviceSessionPrefix(project), s.dataDir)
-	if branch := sess.Metadata.Branch; branch != "" && !isOrchestratorBranch(branch, expectedBranch) {
+	if branch := sess.Metadata.Branch; s.fleetPlace == nil && branch != "" && !isOrchestratorBranch(branch, expectedBranch) {
 		return orchestratorReplacementUnverified("new session %s uses branch %q, want %q", sess.ID, branch, expectedBranch)
 	}
 	return nil
@@ -1252,6 +1292,12 @@ func restoreModeView(mode sessionmanager.RestoreMode) RestoreModeView {
 
 // Kill delegates terminal intent and teardown to the internal manager.
 func (s *Service) Kill(ctx context.Context, id domain.SessionID) (bool, error) {
+	if s.fleetSupervision != nil {
+		result, handled, err := s.fleetSupervision.KillSession(ctx, id)
+		if handled || err != nil {
+			return result, err
+		}
+	}
 	s.cancelTitleRefinement(id)
 	before, live := s.liveSessionBeforeEnd(ctx, id)
 	freed, err := s.manager.Kill(ctx, id)
@@ -1270,6 +1316,12 @@ func (s *Service) Kill(ctx context.Context, id domain.SessionID) (bool, error) {
 
 // RequestKill acknowledges terminal intent without waiting for cleanup scripts.
 func (s *Service) RequestKill(ctx context.Context, id domain.SessionID) (sessionmanager.KillResult, error) {
+	if s.fleetSupervision != nil {
+		result, handled, err := s.fleetSupervision.RequestKillSession(ctx, id)
+		if handled || err != nil {
+			return result, err
+		}
+	}
 	s.cancelTitleRefinement(id)
 	before, live := s.liveSessionBeforeEnd(ctx, id)
 	result, err := s.manager.RequestKill(ctx, id)
@@ -1453,6 +1505,12 @@ func (s *Service) RollbackSpawn(ctx context.Context, id domain.SessionID) (Rollb
 // optional inline image (e.g. a browser-annotation snapshot) written into the
 // session worktree and referenced from the delivered message.
 func (s *Service) Send(ctx context.Context, id domain.SessionID, message string, attachment *ports.SpawnAttachment) error {
+	if s.fleetSupervision != nil {
+		handled, err := s.fleetSupervision.SendSession(ctx, id, message, attachment, ports.MessageDeliveryOptions{})
+		if handled || err != nil {
+			return err
+		}
+	}
 	if s.fleetSend != nil {
 		handled, err := s.fleetSend(ctx, string(id), message)
 		if handled {
@@ -1470,6 +1528,12 @@ func (s *Service) Send(ctx context.Context, id domain.SessionID, message string,
 
 // SendWithOptions preserves authorship facts supplied by trusted UI surfaces.
 func (s *Service) SendWithOptions(ctx context.Context, id domain.SessionID, message string, attachment *ports.SpawnAttachment, options ports.MessageDeliveryOptions) error {
+	if s.fleetSupervision != nil {
+		handled, err := s.fleetSupervision.SendSession(ctx, id, message, attachment, options)
+		if handled || err != nil {
+			return err
+		}
+	}
 	return toAPIError(s.manager.SendWithOptions(ctx, id, message, attachment, options))
 }
 
@@ -1862,6 +1926,12 @@ func (s *Service) GetRecord(ctx context.Context, id domain.SessionID) (domain.Se
 // Get returns one session as an enriched display model, or an apierr.NotFound
 // (SESSION_NOT_FOUND) if it is absent.
 func (s *Service) Get(ctx context.Context, id domain.SessionID) (domain.Session, error) {
+	if s.fleetSupervision != nil {
+		result, handled, err := s.fleetSupervision.GetSession(ctx, id)
+		if handled || err != nil {
+			return result, err
+		}
+	}
 	recoveryRevision := s.statusRecoveryRevision()
 	rec, ok, err := s.store.GetSession(ctx, id)
 	if err != nil {

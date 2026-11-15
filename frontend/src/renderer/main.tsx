@@ -12,6 +12,7 @@ import { playNotificationSound } from "./lib/notification-sound-player";
 import { createAppRouter } from "./router";
 import { TelemetryBoundary } from "./components/TelemetryBoundary";
 import { CloudOnboardingGate } from "./components/CloudOnboardingGate";
+import { isPrivateWeb } from "./lib/private-web";
 import { CloudNotificationRuntime } from "./components/CloudNotificationRuntime";
 import { TelemetryIdentityRuntime } from "./components/TelemetryIdentityRuntime";
 import { applyAnalyticsOptOut, applyRendererTelemetryPolicy, bindRendererErrorHandlers, clearRendererTelemetryQueues, initTelemetry, isDeniedEvent } from "./lib/telemetry";
@@ -131,10 +132,10 @@ async function renderApp(): Promise<void> {
 		<I18nextProvider i18n={appI18n}>
 			<TelemetryBoundary>
 				<QueryClientProvider client={queryClient}>
-					<CloudNotificationRuntime />
-					<TelemetryIdentityRuntime />
+					{!isPrivateWeb() && <CloudNotificationRuntime />}
+					{!isPrivateWeb() && <TelemetryIdentityRuntime />}
 					<RouterProvider router={router} />
-					<CloudOnboardingGate />
+					{!isPrivateWeb() && <CloudOnboardingGate />}
 				</QueryClientProvider>
 			</TelemetryBoundary>
 		</I18nextProvider>,

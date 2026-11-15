@@ -48,6 +48,8 @@ func StartControl(ctx context.Context, db *sql.DB, addr string, identity Identit
 			Log:      log,
 		},
 	}
+	rt.Listener.OnConnect = rt.Service.ResumeNode
+	rt.Listener.OnHeartbeat = rt.Service.ResumePending
 	go applyEvents(ctx, hub, rt.Service, log, &rt.live)
 	if addr != "" {
 		go func() {
@@ -69,7 +71,7 @@ func applyEvents(ctx context.Context, hub *Hub, svc *Service, log *slog.Logger, 
 			var err error
 			switch ev.Kind {
 			case EventStarted:
-				err = svc.NoteStarted(ctx, ev.SessionID, ev.NodeID, engineID(ev))
+				err = svc.NoteStarted(ctx, ev.SessionID, ev.NodeID, engineID(ev), engineMode(ev))
 			case EventFailed:
 				err = svc.NoteFailed(ctx, ev.SessionID, ev.NodeID, string(ev.Payload))
 			case EventChatChanged:
@@ -108,6 +110,14 @@ func engineID(ev Event) string {
 	}
 	_ = json.Unmarshal(ev.Payload, &body)
 	return body.SessionID
+}
+
+func engineMode(ev Event) string {
+	var body struct {
+		Mode string `json:"mode"`
+	}
+	_ = json.Unmarshal(ev.Payload, &body)
+	return body.Mode
 }
 
 func expire(ctx context.Context, svc *Service, log *slog.Logger) {

@@ -208,7 +208,7 @@ export default function CloneRepositoryDialog({
 	}, [activity]);
 
 	const chooseDestination = async () => {
-		if (remote) {
+		if (remote || import.meta.env.VITE_AO_WEB === "1") {
 			onChooseRemoteDestination?.();
 			return;
 		}
@@ -416,7 +416,7 @@ export default function CloneRepositoryDialog({
 										variant="ghost"
 										size="none"
 										className="h-full rounded-none border-0 border-l border-border/60 px-4"
-										disabled={disabled || choosingDestination}
+										disabled={disabled || choosingDestination || (import.meta.env.VITE_AO_WEB === "1" && !onChooseRemoteDestination)}
 										type="button"
 										onClick={() => void chooseDestination()}
 									>

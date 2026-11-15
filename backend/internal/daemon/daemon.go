@@ -342,6 +342,11 @@ func Run(buildVersion string) error {
 	if fleetRuntime != nil {
 		broadcaster := cdcPipe.Broadcaster
 		fleetRuntime.NotifyLive(func(ev fleet.Event) {
+			placement, found, err := fleetRuntime.Store.PlacementForNode(ctx, ev.NodeID, ev.SessionID)
+			if err != nil || !found {
+				return
+			}
+			ev.SessionID = placement.SessionID
 			broadcaster.Publish(cdc.Event{
 				SessionID: ev.SessionID,
 				Type:      cdc.EventSessionUpdated,
@@ -796,7 +801,8 @@ func Run(buildVersion string) error {
 		placement := &fleet.PlacementService{Fleet: fleetRuntime.Service, Projects: fleet.ProjectConfigHomes{Projects: projectSvc}}
 		sessionSvc.SetFleetPlacement(placement.Place)
 		sessionSvc.SetFleetBoard(fleetRuntime.Service.BoardSessions)
-		sessionSvc.SetFleetSend(fleetRuntime.Service.DeliverMessage)
+		sessionSvc.SetFleetSupervision(fleetRuntime.Service)
+		fleetRuntime.Listener.SetControlHandler(controlWorkerRequests(fleetRuntime, sessionSvc))
 	}
 	if cfg.Fleet.Role == "worker" {
 		var power fleet.PowerFunc
@@ -814,11 +820,12 @@ func Run(buildVersion string) error {
 		}}
 		dialer := &fleet.Dialer{
 			URL: cfg.Fleet.ControlURL, NodeID: cfg.Fleet.NodeID, Token: cfg.Fleet.Token, Identity: cfg.Fleet.Identity,
-			Caps:       func() []fleet.Capability { return workerCapabilities(ctx, agentSvc) },
-			Handler:    fleet.WorkerHandlerWithChat(sessionSvc, sessionMessenger{sessionSvc}, power, workerChat(chatSvc), log),
+			Caps:       func() []fleet.Capability { return workerCapabilities(ctx, agentSvc, chatSvc.SupportsChat) },
+			Handler:    fleet.WithDiscovery(fleet.WorkerHandlerWithChat(sessionSvc, sessionMessenger{sessionSvc}, power, workerSupervision(workerChat(chatSvc), sessionSvc, store), log), workerDiscovery(agentSvc, store)),
 			OnTerminal: bridge.Handle,
 		}
 		dialer.StartNotifications()
+		sessionSvc.SetFleetSupervision(workerUpstreamSupervision{dialer: dialer, store: store})
 		go func() {
 			defer sentryobs.RecoverBackground()
 			unsub := cdcPipe.Broadcaster.Subscribe(func(e cdc.Event) {
@@ -844,11 +851,15 @@ func Run(buildVersion string) error {
 			reportCoordinator.Wake()
 		}
 	}})
+	if fleetRuntime != nil {
+		reportSvc.SetFleetReports(fleetRuntime.Store.ListProjectReports)
+	}
 	reportCoordinator = reportsvc.NewCoordinator(reportsvc.CoordinatorDeps{
 		Store:    store,
 		Delivery: reportSemanticDelivery{chat: chatSvc, sessions: reportSessions, store: store},
 	})
 	chatSvc.SetReportCoordinator(reportCoordinator)
+	startFleetReportSupervision(ctx, fleetRuntime, sessionSvc, reportSemanticDelivery{chat: chatSvc, sessions: reportSessions, store: store}, log)
 	reportDeliveryDone := reportCoordinator.Start(ctx)
 	defer func() {
 		stop()
@@ -1640,9 +1651,38 @@ func Run(buildVersion string) error {
 
 func workerCapabilities(ctx context.Context, agents interface {
 	List(context.Context) (agentsvc.Inventory, error)
-}) []fleet.Capability {
+}, chatSupport ...func(domain.AgentHarness) bool) []fleet.Capability {
 	if agents == nil {
 		return nil
+	}
+	if catalog, ok := agents.(interface {
+		CachedReadiness(context.Context) (agentsvc.Readiness, error)
+	}); ok {
+		readiness, err := catalog.CachedReadiness(ctx)
+		if err != nil {
+			return nil
+		}
+		out := make([]fleet.Capability, 0, len(readiness.Agents))
+		for _, snapshot := range readiness.Agents {
+			modes := []string{"tui"}
+			if len(chatSupport) > 0 && chatSupport[0](domain.AgentHarness(snapshot.ID)) {
+				modes = append(modes, "chat")
+			}
+			freshness := string(snapshot.Authentication.Freshness)
+			if snapshot.Installation.Freshness == domain.AgentReadinessFreshness("stale") {
+				freshness = "stale"
+			}
+			capability := fleet.Capability{Harness: snapshot.ID, Installation: string(snapshot.Installation.State), Authentication: string(snapshot.Authentication.State), Freshness: freshness, CheckedAt: snapshot.Authentication.CheckedAt, SupportedModes: modes, ReasonCode: snapshot.Authentication.ReasonCode, LaunchVersion: 1}
+			if capability.CheckedAt == nil {
+				capability.CheckedAt = snapshot.Installation.CheckedAt
+			}
+			if capability.CheckedAt != nil {
+				capability.ReportedAt = *capability.CheckedAt
+			}
+			capability.LoggedIn = capability.Authentication == "authorized" || capability.Authentication == "not_applicable"
+			out = append(out, capability)
+		}
+		return out
 	}
 	caps, err := fleet.LocalCapabilities(ctx, func(ctx context.Context) ([]string, []string, error) {
 		inventory, err := agents.List(ctx)

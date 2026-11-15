@@ -509,6 +509,21 @@ describe("first run project actions", () => {
 });
 
 describe("CreateProjectFlow remote host", () => {
+	it("uses daemon folder browsing and validation for a web service-host project", async () => {
+		vi.stubEnv("VITE_AO_WEB", "1");
+		try {
+			hostMocks.bGet.mockResolvedValue({ data: { path: "/srv/service-project", parent: "/srv", entries: [], truncated: false } });
+			apiMocks.POST.mockResolvedValue({ data: projectValidation("/srv/service-project", { root: { hasOrigin: false } }) });
+			render(<QueryClientProvider client={new QueryClient()}><CreateProjectFlow mode="choose" initialOpen {...noop} /></QueryClientProvider>);
+			await userEvent.click(screen.getByRole("button", { name: "Open a server folder" }));
+			expect(await screen.findByRole("dialog", { name: "Choose a folder on Orchestrator server" })).toBeInTheDocument();
+			await userEvent.click(await screen.findByRole("button", { name: "Use this folder" }));
+			await waitFor(() => expect(apiMocks.POST).toHaveBeenCalledWith("/api/v1/imports/validate", { body: { importKind: "project", path: "/srv/service-project", localOnly: true } }));
+			expect(await screen.findByTestId("agent-sheet")).toHaveAttribute("data-path", "/srv/service-project");
+			expect(screen.queryByText("Create GitHub repository and continue")).not.toBeInTheDocument();
+			expect(bridgeMocks.chooseDirectory).not.toHaveBeenCalled();
+		} finally { vi.unstubAllEnvs(); }
+	});
 	it("switches the shared picker back to this computer", async () => {
 		const user = userEvent.setup();
 		const onSelectHost = vi.fn();

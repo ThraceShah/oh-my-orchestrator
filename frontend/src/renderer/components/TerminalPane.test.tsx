@@ -219,6 +219,39 @@ beforeEach(() => {
 	useUiStore.setState({ inspectorSessions: {} });
 });
 
+describe("browser terminal mode", () => {
+	it("attaches a real terminal in live private web without the Electron bridge", async () => {
+		const previousAO = window.ao;
+		window.ao = undefined;
+		vi.stubEnv("VITE_AO_WEB", "1");
+		vi.stubEnv("VITE_NO_ELECTRON", "0");
+		const createMux = vi.fn(() => ({} as TerminalMux));
+		let view: ReturnType<typeof render> | undefined;
+		try {
+			view = render(<QueryClientProvider client={new QueryClient()}><TooltipProvider><TerminalPane session={{ ...orchestrator, terminalHandleId: "coordinator-pty" }} theme="dark" daemonReady fontSize={13} createMux={createMux} /></TooltipProvider></QueryClientProvider>);
+			await screen.findByTestId("xterm");
+			await waitFor(() => expect(attachMock).toHaveBeenCalled());
+			expect(terminalSessionOptions.at(-1)?.createMux).toBe(createMux);
+			expect(screen.queryByText(/demo terminal is populated for screenshots/)).not.toBeInTheDocument();
+			expect(screen.getByTestId("xterm").closest("pre")).toBeNull();
+		} finally { view?.unmount(); window.ao = previousAO; vi.unstubAllEnvs(); }
+	});
+
+	it("keeps the demo transcript in explicit browser preview mode", () => {
+		const previousAO = window.ao;
+		window.ao = undefined;
+		vi.stubEnv("VITE_AO_WEB", "0");
+		vi.stubEnv("VITE_NO_ELECTRON", "1");
+		let view: ReturnType<typeof render> | undefined;
+		try {
+			view = render(<TerminalPane session={worker} theme="dark" daemonReady fontSize={13} />);
+			expect(screen.getByTestId("session-terminal").tagName).toBe("PRE");
+			expect(screen.queryByTestId("xterm")).not.toBeInTheDocument();
+			expect(attachMock).not.toHaveBeenCalled();
+		} finally { view?.unmount(); window.ao = previousAO; vi.unstubAllEnvs(); }
+	});
+});
+
 describe("cloud terminal routing", () => {
 	it("uses an agent stream for the session terminal and a workspace stream for shell tabs", () => {
 		expect(cloudTerminalKind({ kind: "worker" })).toBe("agent");

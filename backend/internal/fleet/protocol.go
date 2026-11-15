@@ -14,6 +14,7 @@ type Frame struct {
 	Payload  json.RawMessage  `json:"payload,omitempty"`
 }
 
+// Frame types distinguish connection, execution, and terminal traffic.
 const (
 	FrameHello     = "hello"
 	FrameHeartbeat = "heartbeat"

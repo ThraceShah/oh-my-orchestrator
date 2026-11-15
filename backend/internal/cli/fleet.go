@@ -20,7 +20,7 @@ func newFleetCommand(ctx *commandContext) *cobra.Command {
 			"The token prints once and becomes that worker's AO_FLEET_TOKEN.",
 		Args: noArgs,
 	}
-	cmd.AddCommand(newFleetEnrollCommand(ctx), newFleetNodesCommand(ctx), newFleetPowerCommand(ctx))
+	cmd.AddCommand(newFleetEnrollCommand(ctx), newFleetNodesCommand(ctx), newFleetPowerCommand(ctx), newFleetQueryCommand(ctx, "models"), newFleetQueryCommand(ctx, "readiness"))
 	return cmd
 }
 
@@ -43,9 +43,11 @@ func newFleetEnrollCommand(ctx *commandContext) *cobra.Command {
 			if err := ctx.postLoopbackJSONDecoded(cmd.Context(), "/internal/fleet/nodes", req, &res); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "enrolled %s\ntoken: %s\n", res.Node.ID, res.Token)
-			fmt.Fprintln(cmd.ErrOrStderr(), "The token is shown once. Give it to the node as AO_FLEET_TOKEN.")
-			return nil
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "enrolled %s\ntoken: %s\n", res.Node.ID, res.Token); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintln(cmd.ErrOrStderr(), "The token is shown once. Give it to the node as AO_FLEET_TOKEN.")
+			return err
 		},
 	}
 	cmd.Flags().StringVar(&role, "role", string(fleet.RoleWorker), "control or worker")
@@ -61,7 +63,8 @@ func newFleetEnrollCommand(ctx *commandContext) *cobra.Command {
 }
 
 func newFleetNodesCommand(ctx *commandContext) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "List enrolled fleet nodes",
 		Args:  noArgs,
@@ -70,14 +73,23 @@ func newFleetNodesCommand(ctx *commandContext) *cobra.Command {
 			if err := ctx.getLoopbackJSON(cmd.Context(), "/internal/fleet/nodes", &res); err != nil {
 				return err
 			}
+			if asJSON {
+				return writeJSON(cmd.OutOrStdout(), map[string]any{"nodes": fleet.PublicNodes(res.Nodes)})
+			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tNAME\tROLE\tAVAILABILITY\tPRESENCE\tCAPACITY\tPLATFORMS")
+			if _, err := fmt.Fprintln(w, "ID\tNAME\tROLE\tAVAILABILITY\tPRESENCE\tCAPACITY\tPLATFORMS"); err != nil {
+				return err
+			}
 			for _, n := range res.Nodes {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n", n.ID, n.Name, n.Role, n.Availability, n.Presence, n.Capacity, strings.Join(n.Platforms, ","))
+				if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n", n.ID, n.Name, n.Role, n.Availability, n.Presence, n.Capacity, strings.Join(n.Platforms, ",")); err != nil {
+					return err
+				}
 			}
 			return w.Flush()
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "print sanitized node capabilities as JSON")
+	return cmd
 }
 
 // fleetEnrollRequest mirrors the daemon's enrollment body. The CLI keeps its

@@ -438,6 +438,7 @@ type Manager struct {
 	attachments                 *attachmentstore.Store
 	attachmentSuffix            func() (string, error)
 	dataDir                     string
+	fleetCoordinator            bool // configured before the daemon accepts sessions
 	runFilePath                 string
 	clock                       func() time.Time
 	reconcileWorkers            int
@@ -2274,6 +2275,10 @@ func (m *Manager) destroySpawnWorkspace(ctx context.Context, ws ports.WorkspaceI
 	if release, ok := ctx.Value(spawnWorkspaceGateKey{}).(func()); ok {
 		release()
 	}
+	if protected, err := m.protectedCheckout(ctx, ws); err != nil || protected {
+		m.logger.Info("spawn rollback: preserving source checkout", "sessionID", ws.SessionID, "error", err)
+		return false
+	}
 	release := m.acquireWorkspaceGate(ws.ProjectID)
 	inUse, err := m.isWorkspaceInUse(ctx, ws.ProjectID, ws.Path, ws.SessionID)
 	release()
@@ -2860,6 +2865,15 @@ func (m *Manager) kill(ctx context.Context, id domain.SessionID, backgroundClean
 		}
 		releaseTerminals = release
 	}
+	if protected, err := m.protectedCheckout(ctx, ws); err != nil {
+		return KillResult{}, err
+	} else if protected {
+		if err := m.recordTermination(ctx, id, true); err != nil {
+			return KillResult{}, err
+		}
+		m.recordSettledWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable)
+		return KillResult{}, nil
+	}
 	freed := false
 	if ws.Path != "" {
 		// Persist terminal intent before user commands can wait indefinitely.
@@ -3007,6 +3021,11 @@ func (m *Manager) RetireForReplacement(ctx context.Context, id domain.SessionID)
 		return fmt.Errorf("retire replacement %s: preserve attachments: %w", id, err)
 	}
 
+	if protected, err := m.protectedCheckout(ctx, workspaceInfo(rec)); err != nil {
+		return err
+	} else if protected {
+		return m.stopProtectedCheckout(ctx, rec, false)
+	}
 	if rows, ok, rowErr := m.workspaceProjectRows(ctx, rec); rowErr != nil {
 		return fmt.Errorf("retire replacement %s: workspace rows: %w", id, rowErr)
 	} else if ok {
@@ -4163,6 +4182,11 @@ func (m *Manager) saveAndTeardownOne(ctx context.Context, rec domain.SessionReco
 		return fmt.Errorf("save %s: preserve attachments: %w", rec.ID, err)
 	}
 
+	if protected, err := m.protectedCheckout(ctx, workspaceInfo(rec)); err != nil {
+		return err
+	} else if protected {
+		return m.stopProtectedCheckout(ctx, rec, true)
+	}
 	if rows, ok, err := m.workspaceProjectRows(ctx, rec); err != nil {
 		return fmt.Errorf("save %s: workspace rows: %w", rec.ID, err)
 	} else if ok {
@@ -4662,7 +4686,24 @@ func (m *Manager) restoreAllSession(ctx context.Context, rec domain.SessionRecor
 		// No marker: this session was killed by the user before shutdown.
 		return
 	}
-	rows = restorableWorktreeRows(rows)
+	protected, err := m.protectedCheckout(ctx, workspaceInfo(rec))
+	if err != nil {
+		m.logger.Error("restore-all: checkout ownership failed", "sessionID", rec.ID, "error", err)
+		return
+	}
+	if protected {
+		// Unlike managed worktrees, shutdown retains the source directory.
+		// Only its matching active root row is a valid retained marker.
+		var retained []domain.SessionWorktreeRecord
+		for _, row := range rows {
+			if row.RepoName == domain.RootWorkspaceRepoName && row.State == "active" && sameCheckoutPath(row.WorktreePath, rec.Metadata.WorkspacePath) {
+				retained = append(retained, row)
+			}
+		}
+		rows = append(restorableWorktreeRows(rows), retained...)
+	} else {
+		rows = restorableWorktreeRows(rows)
+	}
 	if len(rows) == 0 {
 		return
 	}
@@ -4690,9 +4731,15 @@ func (m *Manager) restoreAllSession(ctx context.Context, rec domain.SessionRecor
 		return
 	}
 	var ws ports.WorkspaceInfo
-	restoredWorkspaceProject := project.Kind.WithDefault() == domain.ProjectKindWorkspace
+	restoredWorkspaceProject := !protected && project.Kind.WithDefault() == domain.ProjectKindWorkspace
 	var projectRows []ports.WorkspaceRepoInfo
-	if restoredWorkspaceProject {
+	if protected {
+		ws, err = restoreProtectedCheckout(rec)
+		if err != nil {
+			m.logger.Error("restore-all: source checkout unavailable", "sessionID", rec.ID, "error", err)
+			return
+		}
+	} else if restoredWorkspaceProject {
 		var rowErr error
 		projectRows, rowErr = m.workspaceProjectRestoreRowsFromMarkers(ctx, project, rec, rows)
 		if rowErr != nil {
@@ -4738,7 +4785,7 @@ func (m *Manager) restoreAllSession(ctx context.Context, rec domain.SessionRecor
 	// Step 2: replay preserve ref when one was recorded.
 	if restoredWorkspaceProject {
 		m.applyWorkspaceProjectPreserved(ctx, projectRows)
-	} else {
+	} else if !protected {
 		var preserveRef string
 		for _, r := range rows {
 			if r.PreservedRef != "" {
@@ -4759,7 +4806,7 @@ func (m *Manager) restoreAllSession(ctx context.Context, rec domain.SessionRecor
 			}
 		}
 	}
-	if recreated {
+	if recreated && !protected {
 		if err := m.provisionWorkspace(ctx, project, ws.Path); err != nil {
 			m.logger.Error("restore-all: setup recreated workspace failed", "sessionID", rec.ID, "error", err)
 			captureBackgroundFault(ctx, err, "boot_restore", "restore_workspace")
@@ -4829,6 +4876,11 @@ func (m *Manager) markSessionWorktreesActive(ctx context.Context, rows []domain.
 }
 
 func (m *Manager) restoreSessionWorkspace(ctx context.Context, project domain.ProjectRecord, rec domain.SessionRecord) (ports.WorkspaceInfo, error) {
+	if protected, err := m.protectedCheckout(ctx, workspaceInfo(rec)); err != nil {
+		return ports.WorkspaceInfo{}, err
+	} else if protected {
+		return restoreProtectedCheckout(rec)
+	}
 	if projectKindForSession(project, rec.ProjectID) != domain.ProjectKindWorkspace {
 		recreated, err := workspacePathMissing(rec.Metadata.WorkspacePath)
 		if err != nil {
@@ -5751,6 +5803,12 @@ func (m *Manager) Cleanup(ctx context.Context, project domain.ProjectID) (Cleanu
 			continue
 		}
 		ws := workspaceInfo(rec)
+		if protected, err := m.protectedCheckout(ctx, ws); err != nil {
+			return result, err
+		} else if protected {
+			m.recordSettledWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable)
+			continue
+		}
 		if ws.Path == "" {
 			m.cleanupAgentWorkspace(ctx, rec, "")
 			m.cleanupSystemPromptDir(rec.ID)
@@ -5793,6 +5851,12 @@ func (m *Manager) Cleanup(ctx context.Context, project domain.ProjectID) (Cleanu
 // Returns no refusal when the workspace was reclaimed; a refusal means it was
 // left alone this run and the reclaim value is undefined.
 func (m *Manager) cleanupWorkspaceUnderGate(ctx context.Context, rec domain.SessionRecord, ws ports.WorkspaceInfo) (ports.WorkspaceReclaim, cleanupRefusal) {
+	if protected, err := m.protectedCheckout(ctx, ws); err != nil {
+		return ports.WorkspaceReclaimRemoved, refusedTeardownFailed
+	} else if protected {
+		m.recordSettledWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable)
+		return ports.WorkspaceReclaimAlreadyAbsent, cleanupRefusal{}
+	}
 	// A preceding session's cleanup commands can outlive the request deadline.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), killTeardownBudget)
 	defer cancel()
@@ -5856,6 +5920,12 @@ func (m *Manager) isWorkspaceInUse(ctx context.Context, projectID domain.Project
 // call) — most commonly because a scoped shell terminal could not be
 // confirmed closed, so reclaiming would pull the ground out from under it.
 func (m *Manager) cleanupOne(ctx context.Context, rec domain.SessionRecord, ws ports.WorkspaceInfo) (ports.WorkspaceReclaim, cleanupRefusal) {
+	if protected, err := m.protectedCheckout(ctx, ws); err != nil {
+		return ports.WorkspaceReclaimRemoved, refusedTeardownFailed
+	} else if protected {
+		m.recordSettledWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable)
+		return ports.WorkspaceReclaimAlreadyAbsent, cleanupRefusal{}
+	}
 	{
 		release := m.acquireWorkspaceGate(rec.ProjectID)
 
@@ -6219,9 +6289,10 @@ func (m *Manager) buildSystemPrompt(ctx context.Context, kind domain.SessionKind
 		return "", err
 	}
 	cfg := systemPromptConfig{
-		Role:       promptRoleForKind(kind),
-		Standalone: projectID == "",
-		Project:    promptProjectContext(projectID, project),
+		Role:             promptRoleForKind(kind),
+		Standalone:       projectID == "",
+		Project:          promptProjectContext(projectID, project),
+		LocalCoordinator: m.fleetCoordinator,
 	}
 
 	switch kind {

@@ -1,4 +1,5 @@
 import { BrowserIcon, type AppIcon } from "../icons";
+import { isPrivateWeb } from "../../lib/private-web";
 import { Activity, Bot, CircleHelp, CreditCard, Keyboard, MousePointerClick, RefreshCw, Server, Settings2, Smartphone, Users } from "@/components/app-icons";
 import { lazy, type ReactNode } from "react";
 import type { TFunction } from "i18next";
@@ -202,7 +203,10 @@ const globalSettingsCatalog: SettingsCatalogItem[] = [
 ];
 
 export function visibleGlobalSettings(context: CatalogContext): SettingsCatalogItem[] {
-	return globalSettingsCatalog.filter((item) => item.visible?.(context) ?? true);
+	const desktopOnly: readonly GlobalSettingsSection[] = ["teams", "billing", "browserProfiles", "computerUse", "coder", "remoteHosts", "mobile", "updates"];
+	return globalSettingsCatalog.filter((item) =>
+		(!isPrivateWeb() || !desktopOnly.includes(item.id)) && (item.visible?.(context) ?? true),
+	);
 }
 
 export function globalSettingsItem(section: GlobalSettingsSection, context: CatalogContext): SettingsCatalogItem {

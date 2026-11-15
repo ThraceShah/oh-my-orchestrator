@@ -54,6 +54,20 @@ describe("live browser renderer", () => {
 		await expect(aoBridge.daemon.start()).rejects.toThrow("host machine");
 	});
 
+	it("reloads browser preferences through the fallback bridge", async () => {
+		localStorage.clear();
+		try {
+			const { aoBridge } = await import("./bridge");
+			await aoBridge.uiSettings.set({ locale: "ja" });
+			await aoBridge.uiSettings.set({ soundNotificationsEnabled: false });
+			await aoBridge.keybindings.set({ "open-settings": [] });
+			vi.resetModules();
+			const { aoBridge: reloaded } = await import("./bridge");
+			await expect(reloaded.uiSettings.get()).resolves.toMatchObject({ locale: "ja", soundNotificationsEnabled: false });
+			await expect(reloaded.keybindings.get()).resolves.toEqual({ "open-settings": [] });
+		} finally { localStorage.clear(); }
+	});
+
 	it("preserves the preview fallback and desktop port behavior when live web mode is off", async () => {
 		vi.stubEnv("VITE_AO_WEB", "0");
 		const { aoBridge } = await import("./bridge");

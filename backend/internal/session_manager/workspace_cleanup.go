@@ -97,6 +97,9 @@ func (m *Manager) runPreRemoveContext(ctx context.Context, projectID domain.Proj
 	if err != nil {
 		return err
 	}
+	if sameCheckoutPath(workspacePath, project.Path) || sameCheckoutPath(workspacePath, project.Config.OrchestratorCheckout) {
+		return nil // Registered source directories never run worktree cleanup scripts.
+	}
 	if project.Kind.WithDefault() == domain.ProjectKindScratch || len(project.Config.PreRemove) == 0 {
 		return nil
 	}
@@ -227,6 +230,11 @@ func (m *Manager) recordWorkspaceCleanup(ctx context.Context, rec domain.Session
 }
 
 func (m *Manager) recordWorkspaceCleanupResult(ctx context.Context, rec domain.SessionRecord, refusal cleanupRefusal, reportOnly bool) error {
+	if protected, err := m.protectedCheckout(ctx, workspaceInfo(rec)); err != nil {
+		return err
+	} else if protected {
+		return m.recordWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable, "", reportOnly)
+	}
 	disposition, code := domain.DispositionRemoved, ""
 	switch {
 	case refusal.code.Retryable():
@@ -371,6 +379,11 @@ func (m *Manager) reconcileWorkspaceCleanup(ctx context.Context, id domain.Sessi
 	facts, found, err := m.store.GetSessionCleanupFacts(ctx, id)
 	if err != nil {
 		return err
+	}
+	if protected, err := m.protectedCheckout(ctx, workspaceInfo(rec)); err != nil {
+		return err
+	} else if protected {
+		return m.recordWorkspaceCleanup(ctx, rec, domain.DispositionNotApplicable, "", false)
 	}
 	if found && facts.SessionGeneration == rec.CleanupGeneration && facts.WorkspaceDisposition == domain.DispositionPending {
 		return m.resumeAcceptedCleanup(ctx, rec)

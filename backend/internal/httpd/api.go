@@ -358,6 +358,7 @@ func (a *API) Register(root chi.Router) {
 			r.Use(presenceMiddleware(a.deps.Presence))
 			r.Use(clientTimeZoneMiddleware(a.deps.ClientTimeZone))
 			a.agents.Register(r)
+			(&controllers.FleetController{Svc: a.deps.Fleet}).RegisterApp(r)
 			a.codexAccounts.Register(r)
 			a.agentAccounts.Register(r)
 			a.projects.Register(r)

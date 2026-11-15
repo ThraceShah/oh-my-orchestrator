@@ -28,6 +28,7 @@ import {
 import { useSessionBrowserLink } from "../hooks/useSessionBrowserLink";
 import { useSessionLinkNavigation } from "../lib/use-session-link-navigation";
 import { getApiBaseUrl } from "../lib/api-client";
+import { isPrivateWeb } from "../lib/private-web";
 import {
 	createTerminalMux,
 	createTerminalMuxPool,
@@ -832,7 +833,9 @@ export function TerminalPane({
 			? terminalTarget.handleId
 			: `${session?.terminalHandleId ?? "empty"}:${session?.terminalGeneration ?? ""}`;
 
-	if (!window.ao) {
+	if (!window.ao && !isPrivateWeb()) {
+		// Live web uses the same mux attachment as desktop. Only the browser
+		// preview build may substitute a transcript when Electron is absent.
 		// A standalone shell has no agent and no branch, so it previews as a plain
 		// prompt rather than borrowing the session's agent transcript.
 		if (terminalTarget?.kind === "shell") {

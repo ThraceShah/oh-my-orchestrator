@@ -3560,6 +3560,222 @@ paths:
       summary: Stream CDC events with durable replay
       tags:
       - events
+  /api/v1/fleet/nodes:
+    get:
+      operationId: listFleetNodes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetNodeListResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Service Unavailable
+      summary: List worker presence, load and normalized capabilities without credentials
+      tags:
+      - fleet
+  /api/v1/fleet/nodes/{id}/models:
+    get:
+      operationId: getFleetNodeModels
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: agent
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: projectId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentModelsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Service Unavailable
+      summary: Read a worker's own model catalog in its project environment
+      tags:
+      - fleet
+  /api/v1/fleet/nodes/{id}/readiness:
+    get:
+      operationId: getFleetNodeReadiness
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: agent
+        schema:
+          type: string
+      - in: query
+        name: projectId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReadinessResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Service Unavailable
+      summary: Read cached readiness on a worker
+      tags:
+      - fleet
+  /api/v1/fleet/nodes/{id}/readiness/ensure:
+    post:
+      operationId: ensureFleetNodeReadiness
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: agent
+        schema:
+          type: string
+      - in: query
+        name: projectId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReadinessResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Service Unavailable
+      summary: Refresh normalized readiness on a worker without installing or logging
+        in
+      tags:
+      - fleet
   /api/v1/fs/dirs:
     get:
       operationId: listDirs
@@ -4579,6 +4795,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
           description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
         "500":
           content:
             application/json:
@@ -4591,7 +4813,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
           description: Not Implemented
-      summary: Spawn an orchestrator session
+      summary: Ensure the local project coordinator and start its first conversation
       tags:
       - sessions
   /api/v1/orchestrators/{id}:
@@ -17113,6 +17335,8 @@ components:
           type: string
         ownerNodeId:
           type: string
+        parentSessionId:
+          type: string
         pinnedAt:
           format: date-time
           type:
@@ -18852,6 +19076,86 @@ components:
       - path
       - gitRepo
       type: object
+    FleetAgentCapability:
+      properties:
+        authentication:
+          type: string
+        checkedAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        freshness:
+          type: string
+        harness:
+          type: string
+        installation:
+          type: string
+        launchVersion:
+          type: integer
+        loggedIn:
+          type: boolean
+        reasonCode:
+          type: string
+        reportedAt:
+          format: date-time
+          type: string
+        supportedModes:
+          items:
+            type: string
+          type: array
+        version:
+          type: string
+      required:
+      - harness
+      - loggedIn
+      type: object
+    FleetNodeListResponse:
+      properties:
+        nodes:
+          items:
+            $ref: '#/components/schemas/FleetNodeSummary'
+          type: array
+      required:
+      - nodes
+      type: object
+    FleetNodeSummary:
+      properties:
+        availability:
+          type: string
+        capabilities:
+          items:
+            $ref: '#/components/schemas/FleetAgentCapability'
+          type: array
+        capacity:
+          type: integer
+        id:
+          type: string
+        inUse:
+          type: integer
+        lastSeenAt:
+          format: date-time
+          type: string
+        name:
+          type: string
+        platforms:
+          items:
+            type: string
+          type: array
+        presence:
+          type: string
+        role:
+          type: string
+      required:
+      - id
+      - name
+      - role
+      - availability
+      - capacity
+      - inUse
+      - presence
+      - capabilities
+      type: object
     GitHubRepo:
       properties:
         clone_url:
@@ -18936,6 +19240,8 @@ components:
           type: string
         initialCommitMessage:
           type: string
+        localOnly:
+          type: boolean
         path:
           minLength: 1
           type: string
@@ -19042,6 +19348,8 @@ components:
           - workspace
           minLength: 1
           type: string
+        localOnly:
+          type: boolean
         path:
           minLength: 1
           type: string
@@ -22685,6 +22993,8 @@ components:
       type: object
     SpawnOrchestratorRequest:
       properties:
+        agent:
+          type: string
         approvalMode:
           enum:
           - default
@@ -22692,12 +23002,26 @@ components:
           - auto
           - bypass-permissions
           type: string
+        attachments:
+          items:
+            $ref: '#/components/schemas/AttachmentInput'
+          type: array
+        brief:
+          type: string
         clean:
           type: boolean
+        clientRequestId:
+          type: string
+        effort:
+          type:
+          - "null"
+          - string
         mode:
           enum:
           - chat
           - tui
+          type: string
+        model:
           type: string
         projectId:
           type: string
@@ -22708,6 +23032,8 @@ components:
       properties:
         orchestrator:
           $ref: '#/components/schemas/OrchestratorResponse'
+        session:
+          $ref: '#/components/schemas/ControllersSessionView'
       required:
       - orchestrator
       type: object
@@ -24716,6 +25042,8 @@ components:
 tags:
 - description: Supported and locally runnable agent adapters
   name: agents
+- description: Worker capability discovery for the project coordinator
+  name: fleet
 - description: Project registry, configuration, and lifecycle administration
   name: projects
 - description: Agent session lifecycle and messaging

@@ -19,6 +19,7 @@ import {
 } from "../types/workspace";
 import { useWorkspaceScope, workspaceQueryKeyForHost } from "../hooks/useWorkspaceQuery";
 import { projectNavigateTarget, sessionNavigateTarget } from "../lib/navigate-to-session";
+import { isPrivateWeb } from "../lib/private-web";
 import {
 	clearTerminateSessionState,
 	useProjectTerminateSessionStates,
@@ -62,6 +63,7 @@ export function SessionTopbarActions({
 	route,
 }: SessionTopbarActionsProps = {}) {
 	const { t } = useTranslation();
+	const newTaskLabel = t(isPrivateWeb() ? "shell.openCoordinator" : "shell.newTask");
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const routeParams = useParams({ strict: false }) as SessionTopbarRoute;
@@ -235,7 +237,7 @@ export function SessionTopbarActions({
 						<TooltipTrigger asChild>
 							<span className="inline-flex" style={noDragStyle}>
 								<Button type="button" size="sm"
-									aria-label={t("shell.newTask")}
+									aria-label={newTaskLabel}
 									data-priority="primary"
 									disabled={startingOrchestrator || isProjectRestarting || isProvisioning}
 									onClick={() => {
@@ -245,11 +247,11 @@ export function SessionTopbarActions({
 									variant="primary"
 								>
 									<Plus className="size-icon-md" aria-hidden="true" />
-									<span data-compact-label>{t("newTask.task")}</span>
+									<span data-compact-label>{isPrivateWeb() ? newTaskLabel : t("newTask.task")}</span>
 								</Button>
 							</span>
 						</TooltipTrigger>
-						<TooltipContent shortcut="new-session" side="bottom">{t("shell.newTask")}</TooltipContent>
+						<TooltipContent shortcut="new-session" side="bottom">{newTaskLabel}</TooltipContent>
 					</Tooltip>
 				</>
 			) : null}

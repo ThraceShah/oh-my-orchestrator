@@ -21,6 +21,7 @@ type Store struct {
 	now func() time.Time
 }
 
+// NewStore uses the daemon database for durable fleet facts.
 func NewStore(db *sql.DB) *Store {
 	return &Store{db: db, now: time.Now}
 }
@@ -81,7 +82,8 @@ CREATE TABLE IF NOT EXISTS fleet_session_placements (
 			return err
 		}
 	}
-	return nil
+	_, err = s.db.ExecContext(ctx, launchSchema)
+	return err
 }
 
 // Enrollment is the one-time result of adding a node. Token is shown once.
@@ -90,6 +92,7 @@ type Enrollment struct {
 	Token string
 }
 
+// Enroll persists one validated node and returns its new one-time token.
 func (s *Store) Enroll(ctx context.Context, n Node) (Enrollment, error) {
 	if err := n.Validate(); err != nil {
 		return Enrollment{}, err
@@ -121,6 +124,7 @@ INSERT INTO fleet_nodes (
 	return Enrollment{Node: n, Token: token}, nil
 }
 
+// List reads enrolled nodes and their last reported capabilities.
 func (s *Store) List(ctx context.Context) ([]Node, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, name, role, availability, capacity, platforms, power_broker,
@@ -130,7 +134,7 @@ FROM fleet_nodes ORDER BY name, id`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Node
 	for rows.Next() {
 		n, err := scanNode(rows)
@@ -152,6 +156,7 @@ FROM fleet_nodes ORDER BY name, id`)
 	return out, nil
 }
 
+// Node finds one enrolled node and its capability observations.
 func (s *Store) Node(ctx context.Context, id string) (Node, bool, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT id, name, role, availability, capacity, platforms, power_broker,
@@ -207,14 +212,28 @@ func (s *Store) Heartbeat(ctx context.Context, nodeID string, caps []Capability)
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fleet_node_capabilities WHERE node_id = ?`, nodeID); err != nil {
 		return err
 	}
-	for _, cap := range caps {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fleet_capability_details WHERE node_id = ?`, nodeID); err != nil {
+		return err
+	}
+	for _, capability := range caps {
 		logged := 0
-		if cap.LoggedIn {
+		if capability.LoggedIn {
 			logged = 1
+		}
+		reported := now
+		if !capability.ReportedAt.IsZero() {
+			reported = capability.ReportedAt.UTC().Format(time.RFC3339Nano)
 		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO fleet_node_capabilities (node_id, harness, logged_in, version, reported_at)
-VALUES (?, ?, ?, ?, ?)`, nodeID, cap.Harness, logged, cap.Version, now); err != nil {
+VALUES (?, ?, ?, ?, ?)`, nodeID, capability.Harness, logged, capability.Version, reported); err != nil {
+			return err
+		}
+		detail, err := json.Marshal(capability)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fleet_capability_details (node_id,harness,payload) VALUES (?,?,?)`, nodeID, capability.Harness, string(detail)); err != nil {
 			return err
 		}
 	}
@@ -258,6 +277,7 @@ WHERE node_id = ? AND state IN ('assigned', 'starting', 'running', 'waking')`, n
 	return nil
 }
 
+// PutPlacement updates ownership facts while retaining existing launch metadata.
 func (s *Store) PutPlacement(ctx context.Context, p SessionPlacement) error {
 	if p.UpdatedAt.IsZero() {
 		p.UpdatedAt = s.now()
@@ -277,7 +297,10 @@ ON CONFLICT(session_id) DO UPDATE SET
     display_name = CASE WHEN excluded.display_name = '' THEN fleet_session_placements.display_name ELSE excluded.display_name END,
     updated_at = excluded.updated_at`,
 		p.SessionID, p.NodeID, string(p.State), p.Detail, p.EngineID, p.ProjectID, p.Kind, p.Harness, p.DisplayName, p.UpdatedAt.UTC().Format(time.RFC3339Nano))
-	return err
+	if err != nil {
+		return err
+	}
+	return s.putLaunchMetadata(ctx, p)
 }
 
 // PlacementFor finds a placement by the control-plane key or the worker engine id.
@@ -300,9 +323,13 @@ FROM fleet_session_placements WHERE engine_id = ?`, id).
 	}
 	p.State = Placement(state)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
+	if err := s.hydratePlacement(ctx, &p); err != nil {
+		return SessionPlacement{}, false, err
+	}
 	return p, true, nil
 }
 
+// Placement finds the durable record for a control-plane session key.
 func (s *Store) Placement(ctx context.Context, sessionID string) (SessionPlacement, bool, error) {
 	var p SessionPlacement
 	var state, updated string
@@ -318,9 +345,13 @@ FROM fleet_session_placements WHERE session_id = ?`, sessionID).
 	}
 	p.State = Placement(state)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
+	if err := s.hydratePlacement(ctx, &p); err != nil {
+		return SessionPlacement{}, false, err
+	}
 	return p, true, nil
 }
 
+// ListPlacements returns durable ownership records and launch metadata.
 func (s *Store) ListPlacements(ctx context.Context) ([]SessionPlacement, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT session_id, node_id, state, detail, engine_id, project_id, kind, harness, display_name, updated_at
@@ -328,7 +359,7 @@ FROM fleet_session_placements ORDER BY updated_at, session_id`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SessionPlacement
 	for rows.Next() {
 		var p SessionPlacement
@@ -340,14 +371,26 @@ FROM fleet_session_placements ORDER BY updated_at, session_id`)
 		p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 		out = append(out, p)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if err := s.hydratePlacement(ctx, &out[i]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
+// CountActive includes disconnected sessions until terminal intent is known.
 func (s *Store) CountActive(ctx context.Context, nodeID string) (int, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `
 SELECT COUNT(*) FROM fleet_session_placements
-WHERE node_id = ? AND state IN ('assigned', 'waking', 'starting', 'running')`, nodeID).Scan(&n)
+WHERE node_id = ? AND state IN ('assigned', 'waking', 'starting', 'running', 'offline')`, nodeID).Scan(&n)
 	return n, err
 }
 
@@ -379,22 +422,27 @@ func scanNode(row scanner) (Node, error) {
 }
 
 func (s *Store) capabilities(ctx context.Context) (map[string][]Capability, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT node_id, harness, logged_in, version, reported_at FROM fleet_node_capabilities`)
+	rows, err := s.db.QueryContext(ctx, `SELECT c.node_id,c.harness,c.logged_in,c.version,c.reported_at,COALESCE(d.payload,'') FROM fleet_node_capabilities c LEFT JOIN fleet_capability_details d ON d.node_id=c.node_id AND d.harness=c.harness ORDER BY c.node_id,c.harness`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := map[string][]Capability{}
 	for rows.Next() {
-		var nodeID, reported string
-		var cap Capability
+		var nodeID, reported, detail string
+		var capability Capability
 		var logged int
-		if err := rows.Scan(&nodeID, &cap.Harness, &logged, &cap.Version, &reported); err != nil {
+		if err := rows.Scan(&nodeID, &capability.Harness, &logged, &capability.Version, &reported, &detail); err != nil {
 			return nil, err
 		}
-		cap.LoggedIn = logged == 1
-		cap.ReportedAt, _ = time.Parse(time.RFC3339Nano, reported)
-		out[nodeID] = append(out[nodeID], cap)
+		if detail != "" {
+			if err := json.Unmarshal([]byte(detail), &capability); err != nil {
+				return nil, err
+			}
+		}
+		capability.LoggedIn = logged == 1
+		capability.ReportedAt, _ = time.Parse(time.RFC3339Nano, reported)
+		out[nodeID] = append(out[nodeID], capability)
 	}
 	return out, rows.Err()
 }

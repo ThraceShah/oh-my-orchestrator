@@ -32,6 +32,6 @@ func existingCheckoutWorkspace(cfg ports.SpawnConfig, id domain.SessionID) (port
 		branch = "HEAD"
 	}
 	return ports.WorkspaceInfo{
-		Path: checkout, Branch: branch, SessionID: id, ProjectID: cfg.ProjectID,
+		Path: checkout, RepoPath: checkout, Branch: branch, SessionID: id, ProjectID: cfg.ProjectID,
 	}, true, nil
 }

@@ -71,6 +71,15 @@ const server = http.createServer(async (req, res) => {
       const body = await response.json();
       return send(res, response.status, 'application/json', JSON.stringify({ ...body, port: apiPort }));
     }
+    // Human work enters through the project's coordinator conversation. The
+    // coordinator's loopback CLI retains the worker creation API; the portal
+    // does not offer a second path for manually spawning subordinate work.
+    if (req.method === 'POST' && (
+      url.pathname === '/api/v1/sessions' ||
+      url.pathname === '/api/v1/orchestrators/delegate' ||
+      url.pathname === '/api/v1/automations' ||
+      /^\/api\/v1\/projects\/[^/]+\/tasks\/prepare$/.test(url.pathname)
+    )) return send(res, 409, 'application/json', JSON.stringify({ error: { kind: 'conflict', code: 'COORDINATOR_REQUIRED', message: 'Discuss new work with the project coordinator.' } }));
     if (url.pathname === '/healthz' || url.pathname.startsWith('/api/v1/')) {
       return proxy(req, res, url.pathname + url.search);
     }

@@ -1,4 +1,5 @@
 import type { AoBridge } from "../../preload";
+import { isPrivateWeb, readWebKeybindings, readWebUiSettings, writeWebKeybindings, writeWebUiSettings } from "./private-web";
 import { coerceUiSettings, DEFAULT_UI_SETTINGS } from "../../shared/ui-locale";
 import type { DaemonStatus } from "../../shared/daemon-status";
 export type { FeatureBuild } from "../../main/feature-builds";
@@ -413,12 +414,12 @@ export const aoBridge: AoBridge =
 			setMacDifferentialUpdates: async () => undefined,
 		},
 		uiSettings: {
-			get: async () => ({ ...DEFAULT_UI_SETTINGS }),
-			set: async (settings) => coerceUiSettings({ ...DEFAULT_UI_SETTINGS, ...settings }),
+			get: async () => isPrivateWeb() ? readWebUiSettings() : ({ ...DEFAULT_UI_SETTINGS }),
+			set: async (settings) => isPrivateWeb() ? writeWebUiSettings(settings) : coerceUiSettings({ ...DEFAULT_UI_SETTINGS, ...settings }),
 		},
 		keybindings: {
-			get: async () => ({}),
-			set: async (overrides) => overrides,
+			get: async () => isPrivateWeb() ? readWebKeybindings() : ({}),
+			set: async (overrides) => isPrivateWeb() ? writeWebKeybindings(overrides) : overrides,
 			setRecording: async () => undefined,
 		},
 		updates: {
