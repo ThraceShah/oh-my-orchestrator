@@ -30,4 +30,14 @@ The final subordinate task read the worker checkout and submitted `worker report
 - `ao preview` cannot attach from this DSH session because `AO_SESSION_ID` is unset. Verification used real Chromium and the actual built web server; no AO identity was fabricated.
 - Agent and provider installation/login remain manual. Packaging AO's Chat adapter does not install a provider Agent or copy credentials between machines.
 - An offline enrolled Windows node without a worker daemon is not a verified worker. Wake configuration alone is not proof of successful installation, launch or shutdown.
-- Physical fleet rollout and HTTPS verification are separate deployment steps; the isolated check above does not substitute for them.
+- The isolated runtime check above does not substitute for the separate physical rollout checks below.
+
+## Physical rollout and HTTPS
+
+The service host and the three online workers were updated on their actual Linux ARM64, Linux AMD64 and Darwin ARM64 machines using their existing systemd or launchd services. Every transferred executable/archive was checked against its build SHA-256; each target executed its own packaged Node binary. Credentials and worker environment files were retained. The offline Windows registration was excluded.
+
+The existing portal registration and prefix were retained. The live Tailscale HTTPS application returned 200; readiness reported the actual daemon port; a built JavaScript resource and a nested route returned 200; the real prefixed WSS mux upgraded. Browser requests to direct worker creation, delegation and automation creation returned `COORDINATOR_REQUIRED`. Actual server folder browsing and the live fleet dialog rendered without page errors or failed requests.
+
+Real authenticated discovery returned the Linux worker's Claude model catalog and the Mac worker's Codex model catalog. All three workers advertised launch protocol version 1. A project-scoped model query for an unregistered logical project returned the actual missing-project error. The public domain retained its existing MFA redirect, and the portal's public-edge registry marked it active.
+
+The final inventory review also found an inherited AGY authentication shortcut that treated installation as authorization. That shortcut was corrected: without a reliable native status check, AGY reports unknown. The browser permits an explicit local launch attempt without falsely claiming verified sign-in; worker scheduling does not count unknown observations as authorization.

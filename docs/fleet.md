@@ -51,6 +51,8 @@ ao fleet models --node worker-a --agent pi --project my-project --json
 
 The application API exposes sanitized node summaries and worker-scoped readiness/model queries under `/api/v1/fleet/nodes`. Summaries distinguish reported installation, authorization, configured credentials, supported interfaces, freshness, capacity and occupied slots. A recent heartbeat does not make an old native authentication check fresh. Missing or unknown observations are not proof of readiness.
 
+An installed AGY executable does not prove that native browser/keyring sign-in is complete. Its authentication remains unknown when no reliable non-interactive status check exists; the UI does not label installation as authorization.
+
 Each worker must have the corresponding logical project registered with its own local path. Model discovery and launch run in that worker's environment; a missing project, executable or authorization is reported rather than substituting the service host's path or credentials. These APIs do not install agents or initiate login.
 
 ## Placement and identity
