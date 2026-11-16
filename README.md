@@ -1,214 +1,107 @@
-<div align="center">
+# Oh My Orchestrator
 
-<img src="docs/assets/readme/logo.png" alt="Orchestrator.inc logo" width="96" height="96" />
+**A private, cross-device coordinator for coding agents.** Keep one long-lived coordinator with a project's checkout on your service host, then let it delegate substantial work to agents running on your own machines.
 
-### Orchestrator.inc
+[简体中文](translations/README.zh-CN.md) · [Fleet setup](docs/fleet.md) · [Development guide](docs/development.md) · [Issues](https://github.com/ThraceShah/oh-my-orchestrator/issues)
 
-<h4>Stop babysitting agents. Start merging real work.</h4>
+This is an independently maintained community fork of [Orchestrator.inc](https://github.com/OrchestratorInc/agent-orchestrator). It reuses the original React interface and adds a private web workflow for service-host coordinators and remote workers. It is not affiliated with or endorsed by OrchestratorInc. The upstream desktop downloads do not contain this fork's changes.
 
-<p>
-  Run a fleet of coding agents while keeping branches, reviews, and CI failures manageable.
-</p>
+## How it works
 
-[![GitHub stars](https://img.shields.io/github/stars/ThraceShah/oh-my-orchestrator?style=flat&logo=github&color=1A9BF0)](https://github.com/ThraceShah/oh-my-orchestrator/stargazers)
-[![Upstream release](https://img.shields.io/github/v/release/OrchestratorInc/agent-orchestrator?label=upstream%20release&style=flat&logo=github&color=1A9BF0)](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-0B1A33?style=flat)](LICENSE)
-[![X](https://img.shields.io/badge/@useOrchestrator-0B1A33?style=flat&logo=x&logoColor=white)](https://x.com/useOrchestrator)
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/UZv7JjxbwG)
+```text
+You ── chat with ──> Project coordinator (service host)
+                             │
+                       chooses worker,
+                       Agent and model
+                             │
+            ┌────────────────┴────────────────┐
+            ▼                                 ▼
+      Worker machine                    Worker machine
+      isolated worktree                 isolated worktree
+            └────────────────┬────────────────┘
+                             │ durable report
+                             └────────> Coordinator
+```
 
-<br />
+- **One coordinator per project.** It stays tied to the registered project checkout on the service host. Stopping or replacing the coordinator preserves that source directory and its uncommitted files.
+- **Work starts as a conversation.** Describe what you want in the coordinator chat. The coordinator decides whether to continue current work or start a subordinate task; the web interface does not let people create worker tasks directly.
+- **You choose the coordinator setup.** Select its service-host Agent, model and thinking level. The coordinator chooses worker machines and their Agent, model and effort based on reported capabilities and project readiness.
+- **Workers keep their own runtime and credentials.** Each worker creates its worktree and runs its Agent locally. Completion reports return to the parent coordinator with stable session identity and deduplication.
+- **No provider is installed or signed in for you.** Install and authorize each provider Agent yourself on the machine where it will run. Credentials are not copied between hosts.
 
-[**Upstream releases**](https://github.com/OrchestratorInc/agent-orchestrator/releases) &nbsp;&bull;&nbsp; [This fork's source](https://github.com/ThraceShah/oh-my-orchestrator) &nbsp;&bull;&nbsp; [Upstream documentation](https://docs.orchestrator.inc) &nbsp;&bull;&nbsp; [Contributing](CONTRIBUTING.md) &nbsp;&bull;&nbsp; [Discord](https://discord.com/invite/UZv7JjxbwG)
+## Private web mode
 
-**English** · [简体中文](translations/README.zh-CN.md) · [日本語](translations/README.ja.md) · [한국어](translations/README.ko.md) · [Español](translations/README.es.md) · [Français](translations/README.fr.md) · [Deutsch](translations/README.de.md) · [Português (Brasil)](translations/README.pt-BR.md)
+The web interface uses the original Orchestrator renderer, board, chat and terminal. It adds project coordinators, worker discovery and server-side project browsing. It does not require an AO SaaS account and hides account, billing, team and hosted-execution entry points. In a portal deployment, access is protected by the portal's existing authentication.
 
-<br />
+The daemon's primary API stays on loopback. Workers connect to the separately configured fleet endpoint; keep that endpoint on a trusted private network. Do not expose the daemon API or the portal operator directly to the public internet. See [Fleet setup and security notes](docs/fleet.md) and the [portal deployment guide](deploy/portal-operator/README.md).
 
-<img src="docs/assets/readme/hero.png" alt="Orchestrator.inc Kanban showing worker sessions grouped by live status" width="100%" />
+## Build from source
 
-</div>
+This repository currently publishes source code, not installable desktop or server releases. The binaries linked by the upstream project are not builds of this fork.
 
-> This repository is an independently maintained community fork of [Orchestrator.inc](https://github.com/OrchestratorInc/agent-orchestrator), adding a private, cross-device coordinator mode to its original application. It is not affiliated with or endorsed by OrchestratorInc. The desktop downloads and product documentation linked below are from the upstream project and do not include builds of this fork.
->
-> This fork retains the inherited [Apache License 2.0](LICENSE). It is a permissive license with an express patent grant. The upstream code and its existing contributor rights prevent us from replacing it with a different license without permission from all relevant rights holders.
+### Requirements
 
-<br />
+- Go 1.27.4 or newer
+- Node.js 24 and npm 10
+- Git
+- A provider Agent CLI installed and authorized separately on each host that will run it
 
-## Why Orchestrator.inc
+### Build the daemon
 
-One coding agent can handle a task. Running several means splitting the work, keeping branches from colliding, and following every change through CI, review, and merge. Orchestrator.inc is a local desktop workspace for that: every task gets its own agent, branch, and worktree, and your code stays on your machine.
+```bash
+git clone https://github.com/ThraceShah/oh-my-orchestrator.git
+cd oh-my-orchestrator
+cd backend
+go build -o ../out/ao ./cmd/ao
+```
 
-## Features
+### Build and run the private web interface
 
-### The orchestrator runs the fleet
+The web build is the original renderer configured for the real private-web daemon. `dev:web` is a fixture preview and is not a production server.
 
-Tell a project's main agent what you want built. It plans the work, starts a worker for each piece in its own worktree, and comes back only when something needs you.
+```bash
+cd frontend
+npm ci --ignore-scripts
+npm run build:web
+cd ../deploy/portal-operator
+HOST=127.0.0.1 PORT=3012 FLEET_API_PORT=3011 node server.mjs
+```
 
-<img src="docs/assets/readme/site/orchestrator.jpg" alt="The orchestrator splitting a billing feature into three workers, each in its own worktree with a different coding agent" width="100%" />
+Run the daemon separately under a persistent process manager. For a private deployment, set `AO_CLOUD_OFFERING=off`, configure the control role and fleet listener, and place the portal operator behind an authenticated reverse proxy. The service must keep the daemon API on loopback and must not expose the operator's loopback port directly. See the [portal deployment guide](deploy/portal-operator/README.md) for the complete configuration.
 
-### One board for every session
+## Add worker machines
 
-Sessions sort themselves into lanes from the agent, its PR, CI, and reviews, so whatever needs you is on top.
+1. Install and authorize the Agent CLIs you intend to use on each worker.
+2. Enroll the worker from the service host with `ao fleet enroll`. The enrollment token is shown once; store it in a protected environment file.
+3. Start the worker daemon with `AO_FLEET_ROLE=worker`, its node ID, the service host's private fleet URL and the token.
+4. Register the same logical project ID on each worker, pointing to that worker's own checkout. The project IDs must match across hosts; paths remain local to each machine.
+5. Check fresh, project-scoped Agent readiness before assigning work.
 
-<img src="docs/assets/readme/site/board.jpg" alt="The Kanban board with Working, Needs you, In review, and Ready to merge lanes" width="100%" />
+For command examples and configuration options, see [docs/fleet.md](docs/fleet.md). The coordinator reports offline workers, stale authorization and missing project registrations as unmet prerequisites; it does not install providers or transfer credentials.
 
-### CI fails, the right agent fixes it
+## Development checks
 
-Failed checks, review comments, and merge conflicts go back to the worker that owns the branch until the PR is approved. A reviewer agent can read every PR before a person does.
+```bash
+# Backend
+(cd backend && go test ./...)
 
-<img src="docs/assets/readme/site/feedback.jpg" alt="A pull request timeline where a failed check and a review comment are routed back to Claude Code, which pushes a fix" width="100%" />
+# Frontend
+npm run frontend:typecheck
+npm --prefix frontend test
 
-### Use the agent you already trust
+# Portal reverse proxy
+node --test deploy/portal-operator/server.test.mjs
+```
 
-Pick the agent and model per task, then work in structured chat or the agent's own terminal UI. Each worker also gets a browser to preview and test its app.
+See [docs/development.md](docs/development.md) for the full development setup. The fleet implementation and private web deployment have additional focused validation notes in [docs/private-coordinator-validation.md](docs/private-coordinator-validation.md).
 
-#### Supported agents
+## Scope and status
 
-Worker, Chat, and reviewer support differ by agent; the [agent setup guides](https://docs.orchestrator.inc/plugins/agents) have the current matrix.
-
-<table>
-  <tr valign="middle">
-    <td width="33%" valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/claude-code.svg" alt="Claude Code" width="24" height="24" align="middle" /> &nbsp; <b>Claude Code</b></td>
-    <td width="33%" valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/codex.svg" alt="Codex" width="24" height="24" align="middle" /> &nbsp; <b>Codex</b></td>
-    <td width="33%" valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/cursor-dark.svg" /><img src="frontend/src/renderer/assets/agents/cursor-light.svg" alt="Cursor" width="24" height="24" align="middle" /></picture> &nbsp; <b>Cursor</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/opencode-dark.svg" /><img src="frontend/src/renderer/assets/agents/opencode-light.svg" alt="opencode" width="24" height="24" align="middle" /></picture> &nbsp; <b>opencode</b></td>
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/aider.svg" alt="Aider" width="24" height="24" align="middle" /> &nbsp; <b>Aider</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/copilot-dark.svg" /><img src="frontend/src/renderer/assets/agents/copilot-light.svg" alt="GitHub Copilot" width="24" height="24" align="middle" /></picture> &nbsp; <b>GitHub Copilot</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/grok-dark.svg" /><img src="frontend/src/renderer/assets/agents/grok-light.svg" alt="Grok" width="24" height="24" align="middle" /></picture> &nbsp; <b>Grok</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/kimi-dark.svg" /><img src="frontend/src/renderer/assets/agents/kimi-light.svg" alt="Kimi" width="24" height="24" align="middle" /></picture> &nbsp; <b>Kimi</b></td>
-    <td valign="middle" nowrap><img src="docs/assets/readme/agents/pi-coding-agent.svg" alt="Pi" width="24" height="24" align="middle" /> &nbsp; <b>Pi</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/amp-dark.svg" /><img src="frontend/src/renderer/assets/agents/amp-light.svg" alt="Amp" width="24" height="24" align="middle" /></picture> &nbsp; <b>Amp</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/auggie-dark.svg" /><img src="frontend/src/renderer/assets/agents/auggie-light.svg" alt="Auggie" width="24" height="24" align="middle" /></picture> &nbsp; <b>Auggie</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/droid-dark.svg" /><img src="frontend/src/renderer/assets/agents/droid-light.svg" alt="Droid" width="24" height="24" align="middle" /></picture> &nbsp; <b>Droid</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/crush.svg" alt="Crush" width="24" height="24" align="middle" /> &nbsp; <b>Crush</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/cline-dark.svg" /><img src="frontend/src/renderer/assets/agents/cline-light.svg" alt="Cline" width="24" height="24" align="middle" /></picture> &nbsp; <b>Cline</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/goose-dark.svg" /><img src="frontend/src/renderer/assets/agents/goose-light.svg" alt="Goose" width="24" height="24" align="middle" /></picture> &nbsp; <b>Goose</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/qwen-dark.svg" /><img src="frontend/src/renderer/assets/agents/qwen-light.svg" alt="Qwen" width="24" height="24" align="middle" /></picture> &nbsp; <b>Qwen</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/continue-dark.svg" /><img src="frontend/src/renderer/assets/agents/continue-light.svg" alt="Continue" width="24" height="24" align="middle" /></picture> &nbsp; <b>Continue</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/devin-dark.svg" /><img src="frontend/src/renderer/assets/agents/devin-light.svg" alt="Devin" width="24" height="24" align="middle" /></picture> &nbsp; <b>Devin</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/kiro.svg" alt="Kiro" width="24" height="24" align="middle" /> &nbsp; <b>Kiro</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/kilocode-dark.svg" /><img src="frontend/src/renderer/assets/agents/kilocode-light.svg" alt="Kilo Code" width="24" height="24" align="middle" /></picture> &nbsp; <b>Kilo Code</b></td>
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/vibe.svg" alt="Vibe" width="24" height="24" align="middle" /> &nbsp; <b>Vibe</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/muse.svg" alt="Muse" width="24" height="24" align="middle" /> &nbsp; <b>Muse</b></td>
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/agy.svg" alt="Agy" width="24" height="24" align="middle" /> &nbsp; <b>Agy</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/agents/autohand-stacked-dark.png" /><img src="docs/assets/readme/agents/autohand-stacked-light.png" alt="Autohand" width="24" height="24" align="middle" /></picture> <b>Autohand</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/kimchi.svg" alt="Kimchi" width="24" height="24" align="middle" /> &nbsp; <b>Kimchi</b></td>
-    <td valign="middle" nowrap><img src="docs/assets/readme/agents/prime-agent.svg" alt="Prime Agent" width="24" height="24" align="middle" /> &nbsp; <b>Prime Agent</b></td>
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/omp.svg" alt="OMP" width="24" height="24" align="middle" /> &nbsp; <b>OMP</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/fx-dark.svg" /><img src="frontend/src/renderer/assets/agents/fx-light.svg" alt="fx" width="24" height="24" align="middle" /></picture> &nbsp; <b>fx</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/unreal-agent-dark.png" /><img src="frontend/src/renderer/assets/agents/unreal-agent-light.png" alt="Unreal Agent" width="24" height="24" align="middle" /></picture> &nbsp; <b>Unreal Agent</b></td>
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/mimo-code.svg" alt="MiMo Code" width="24" height="24" align="middle" /> &nbsp; <b>MiMo Code</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><img src="frontend/src/renderer/assets/agents/gemini.svg" alt="Gemini CLI" width="24" height="24" align="middle" /> &nbsp; <b>Gemini CLI</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/deepseek-harness-dark.svg" /><img src="frontend/src/renderer/assets/agents/deepseek-harness-light.svg" alt="DeepSeek" width="24" height="24" align="middle" /></picture> &nbsp; <b>DeepSeek</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/opencode-dark.svg" /><img src="frontend/src/renderer/assets/agents/opencode-light.svg" alt="OpenCode 2" width="24" height="24" align="middle" /></picture> &nbsp; <b>OpenCode 2</b></td>
-  </tr>
-  <tr valign="middle">
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/codewhale-dark.svg" /><img src="frontend/src/renderer/assets/agents/codewhale-light.svg" alt="Codewhale" width="24" height="24" align="middle" /></picture> &nbsp; <b>Codewhale</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/command-code-dark.svg" /><img src="frontend/src/renderer/assets/agents/command-code-light.svg" alt="Command Code" width="24" height="24" align="middle" /></picture> &nbsp; <b>Command Code</b></td>
-    <td valign="middle" nowrap><picture><source media="(prefers-color-scheme: dark)" srcset="frontend/src/renderer/assets/agents/openhands-dark.svg" /><img src="frontend/src/renderer/assets/agents/openhands-light.svg" alt="OpenHands" width="24" height="24" align="middle" /></picture> &nbsp; <b>OpenHands</b></td>
-  </tr>
-</table>
-
-<br />
-
-### Orchestrator for Mobile
-
-Control the agents running on your desktop from your phone. Install the app for [iPhone](https://apps.apple.com/app/ao-mobile/id6792552173) or [Android](https://play.google.com/store/apps/details?id=aoagents.dev). Scan the QR code in **Settings → Connect Mobile** to pair it with your desktop. It works on your home Wi-Fi and away from home.
-
-- **Get alerts.** A push notification tells you when an agent has a question or needs approval.
-- **Reply.** Answer in chat, approve the request, or open the agent's terminal.
-- **Start work.** Create a new worker and pick its agent and model.
-- **Review.** Check pull requests and reviewer results.
-
-<img src="docs/assets/readme/site/mobile.jpg" alt="The mobile app showing an agent asking which mail provider to use and the reply sent from the phone" width="100%" />
-
-### Cloud Agents
-
-Run workers in hosted workspaces instead of on your machine. Choose **Clone to the cloud** and pick a GitHub repository to start.
-
-- **Keep running.** Tasks keep going with your laptop closed.
-- **Follow along.** Open the chat, files, and terminal from the desktop app.
-- **Nothing on your machine.** The code, worktrees, and agents all live in the cloud.
-
-See the [Cloud guide](https://docs.orchestrator.inc/guides/cloud) for setup.
-
-## Install
-
-Download from [orchestrator.inc/download](https://orchestrator.inc/download/) or [GitHub Releases](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest). The app updates itself.
-
-| Platform | Download |
-| :-- | :-- |
-| **macOS** (Apple silicon) | [`Orchestrator-darwin-arm64.dmg`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/Orchestrator-darwin-arm64.dmg) |
-| **macOS** (Intel) | [`Orchestrator-darwin-x64.dmg`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/Orchestrator-darwin-x64.dmg) |
-| **Windows** | [`agent-orchestrator-win32-x64.exe`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-win32-x64.exe) |
-| **Linux** (AppImage) | [`agent-orchestrator-linux-x64.AppImage`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-linux-x64.AppImage) |
-| **Linux** (Debian/Ubuntu) | [`agent-orchestrator-linux-x64.deb`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-linux-x64.deb) |
-| **Linux** (Fedora/RHEL) | [`agent-orchestrator-linux-x64.rpm`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-linux-x64.rpm) |
-
-The downloads above are the official upstream desktop binaries; they do not contain this fork's cross-device coordinator changes. To use this fork, build it from source using [docs/development.md](docs/development.md). For setup and troubleshooting of the upstream desktop release, see its [installation guide](https://docs.orchestrator.inc/installation).
-
-## Documentation
-
-| Document | Start here when you need |
-| :-- | :-- |
-| [Product documentation](https://docs.orchestrator.inc) | Installation, agent setup, and day-to-day product usage. |
-| [docs/documentation-map.md](docs/documentation-map.md) | Which docs are human-facing, which are machine-readable contracts, and which wins on drift. |
-| [docs/architecture.md](docs/architecture.md) | Backend mental model, lifecycle, persistence, CDC, status derivation, and daemon boundaries. |
-| [docs/backend-code-structure.md](docs/backend-code-structure.md) | Package ownership and where each backend concern belongs. |
-| [docs/cli/README.md](docs/cli/README.md) | CLI behavior and daemon route mapping. |
-| [docs/fleet.md](docs/fleet.md) | Register workers and use the cross-device coordinator. |
-| [docs/development.md](docs/development.md) | Prerequisites, build steps, running tests, and troubleshooting for local development. |
-| [docs/STATUS.md](docs/STATUS.md) | What currently ships on `main` and what remains in flight. |
-
-## Contributing
-
-Start with the [development guide](docs/development.md) for prerequisites, local setup, and test commands. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and use [GitHub Issues](https://github.com/OrchestratorInc/agent-orchestrator/issues) for bugs and feature requests.
-
-### Report a bug
-
-[Open a bug report](https://github.com/OrchestratorInc/agent-orchestrator/issues/new?template=bug_report.yml) from your own GitHub account. A few sentences on what you did and what went wrong are enough; version, OS, and repro steps help if you have them.
-
-A local coding agent can help gather evidence with the [bug-triage skill](.agents/skills/bug-triage/SKILL.md); keep its logs and notes in attachments, and review the draft before submitting it yourself. Please don't have a bot file issues for you.
-
-For help describing a problem, join the [bug-triaging channel on Discord](https://discord.com/channels/1476302178913357958/1491735678156013588). See [contribution guidance](CONTRIBUTING.md#bugs-and-features) for more detail.
-
-## Community
-
-Join [Discord](https://discord.com/invite/UZv7JjxbwG) for help and contributor discussion, follow [@useOrchestrator](https://x.com/useOrchestrator) for updates, or start a conversation in [GitHub Issues](https://github.com/OrchestratorInc/agent-orchestrator/issues).
-
-## Star history
-
-<a href="https://www.star-history.com/#OrchestratorInc/agent-orchestrator&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=OrchestratorInc/agent-orchestrator&type=Date&theme=dark" />
-    <img src="https://api.star-history.com/svg?repos=OrchestratorInc/agent-orchestrator&type=Date" alt="Star history chart for OrchestratorInc/agent-orchestrator" width="100%" />
-  </picture>
-</a>
-
-## Product telemetry
-
-Orchestrator.inc collects limited usage and reliability telemetry, never your code, prompts, agent conversations, or credentials. It includes an installation ID and your GitHub username; if you sign in to AO Cloud it also includes your AO Cloud user ID and the email address of that account, set once as a PostHog person property (never read from git config). Turn it all off in Settings > General > Privacy > Share usage analytics, which covers the desktop, the daemon, and a paired phone. [Learn exactly what we collect and how to opt out](docs/telemetry.md).
+- The service-host coordinator and fleet protocol are intended for deployment by the project owner on machines they control.
+- The private web flow is source-only at present; no ready-made public binary release is provided for this fork.
+- Windows worker deployment has not been validated for this fork. Treat a registered but offline node as unavailable.
+- Existing desktop and cloud-related upstream code remains in the source tree. The private web interface described here does not provide AO SaaS login, billing or hosted execution.
 
 ## License
 
-Orchestrator.inc is available under the [Apache License 2.0](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE) for the license text and inherited notices.
