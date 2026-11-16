@@ -10,16 +10,15 @@
   Run a fleet of coding agents while keeping branches, reviews, and CI failures manageable.
 </p>
 
-[![GitHub stars](https://img.shields.io/github/stars/OrchestratorInc/agent-orchestrator?style=flat&logo=github&color=1A9BF0)](https://github.com/OrchestratorInc/agent-orchestrator/stargazers)
-[![GitHub release](https://img.shields.io/github/v/release/OrchestratorInc/agent-orchestrator?style=flat&logo=github&color=1A9BF0)](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest)
-[![GitHub downloads](https://img.shields.io/github/downloads/OrchestratorInc/agent-orchestrator/total?style=flat&logo=github&color=1A9BF0)](https://github.com/OrchestratorInc/agent-orchestrator/releases)
+[![GitHub stars](https://img.shields.io/github/stars/ThraceShah/oh-my-orchestrator?style=flat&logo=github&color=1A9BF0)](https://github.com/ThraceShah/oh-my-orchestrator/stargazers)
+[![Upstream release](https://img.shields.io/github/v/release/OrchestratorInc/agent-orchestrator?label=upstream%20release&style=flat&logo=github&color=1A9BF0)](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-0B1A33?style=flat)](LICENSE)
 [![X](https://img.shields.io/badge/@useOrchestrator-0B1A33?style=flat&logo=x&logoColor=white)](https://x.com/useOrchestrator)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.com/invite/UZv7JjxbwG)
 
 <br />
 
-[**Get Orchestrator.inc**](https://orchestrator.inc) &nbsp;&bull;&nbsp; [Documentation](https://docs.orchestrator.inc) &nbsp;&bull;&nbsp; [Releases](https://github.com/OrchestratorInc/agent-orchestrator/releases) &nbsp;&bull;&nbsp; [Contributing](CONTRIBUTING.md) &nbsp;&bull;&nbsp; [Discord](https://discord.com/invite/UZv7JjxbwG)
+[**Upstream releases**](https://github.com/OrchestratorInc/agent-orchestrator/releases) &nbsp;&bull;&nbsp; [This fork's source](https://github.com/ThraceShah/oh-my-orchestrator) &nbsp;&bull;&nbsp; [Upstream documentation](https://docs.orchestrator.inc) &nbsp;&bull;&nbsp; [Contributing](CONTRIBUTING.md) &nbsp;&bull;&nbsp; [Discord](https://discord.com/invite/UZv7JjxbwG)
 
 **English** · [简体中文](translations/README.zh-CN.md) · [日本語](translations/README.ja.md) · [한국어](translations/README.ko.md) · [Español](translations/README.es.md) · [Français](translations/README.fr.md) · [Deutsch](translations/README.de.md) · [Português (Brasil)](translations/README.pt-BR.md)
 
@@ -28,6 +27,10 @@
 <img src="docs/assets/readme/hero.png" alt="Orchestrator.inc Kanban showing worker sessions grouped by live status" width="100%" />
 
 </div>
+
+> This repository is an independently maintained community fork of [Orchestrator.inc](https://github.com/OrchestratorInc/agent-orchestrator), adding a private, cross-device coordinator mode to its original application. It is not affiliated with or endorsed by OrchestratorInc. The desktop downloads and product documentation linked below are from the upstream project and do not include builds of this fork.
+>
+> This fork retains the inherited [Apache License 2.0](LICENSE). It is a permissive license with an express patent grant. The upstream code and its existing contributor rights prevent us from replacing it with a different license without permission from all relevant rights holders.
 
 <br />
 
@@ -162,7 +165,7 @@ Download from [orchestrator.inc/download](https://orchestrator.inc/download/) or
 | **Linux** (Debian/Ubuntu) | [`agent-orchestrator-linux-x64.deb`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-linux-x64.deb) |
 | **Linux** (Fedora/RHEL) | [`agent-orchestrator-linux-x64.rpm`](https://github.com/OrchestratorInc/agent-orchestrator/releases/latest/download/agent-orchestrator-linux-x64.rpm) |
 
-Open Orchestrator.inc and point it at the repository you want it to manage. The desktop app runs the daemon for you, so no CLI is required. See the [installation guide](https://docs.orchestrator.inc/installation) for agent CLI setup and troubleshooting.
+The downloads above are the official upstream desktop binaries; they do not contain this fork's cross-device coordinator changes. To use this fork, build it from source using [docs/development.md](docs/development.md). For setup and troubleshooting of the upstream desktop release, see its [installation guide](https://docs.orchestrator.inc/installation).
 
 ## Documentation
 
@@ -173,6 +176,7 @@ Open Orchestrator.inc and point it at the repository you want it to manage. The 
 | [docs/architecture.md](docs/architecture.md) | Backend mental model, lifecycle, persistence, CDC, status derivation, and daemon boundaries. |
 | [docs/backend-code-structure.md](docs/backend-code-structure.md) | Package ownership and where each backend concern belongs. |
 | [docs/cli/README.md](docs/cli/README.md) | CLI behavior and daemon route mapping. |
+| [docs/fleet.md](docs/fleet.md) | Register workers and use the cross-device coordinator. |
 | [docs/development.md](docs/development.md) | Prerequisites, build steps, running tests, and troubleshooting for local development. |
 | [docs/STATUS.md](docs/STATUS.md) | What currently ships on `main` and what remains in flight. |
 

@@ -2,9 +2,11 @@
 
 Regular contributions can lead to a conversation about joining the team.
 
+This repository is a community fork of [OrchestratorInc/agent-orchestrator](https://github.com/OrchestratorInc/agent-orchestrator). Use issues and pull requests in this repository for changes to this fork; upstream issues and policies apply only to the upstream project.
+
 New contributors should start with bug fixes. Pick an available issue labelled
 `bug`, comment to claim it, and open a PR linked to that issue.
-Feature work needs core-team approval before you start.
+Feature work should be discussed with this repository's maintainers before you start.
 
 Bug reports, docs, tests, and help investigating issues are welcome too.
 
@@ -24,7 +26,7 @@ Use Discord for questions and the weekly contributor call.
 ## Quick start
 
 1. Read [AGENTS.md](AGENTS.md) for setup, commands, and PR requirements.
-2. Pick an unclaimed `bug` from [open issues](https://github.com/OrchestratorInc/agent-orchestrator/issues). Check assignees, comments, and linked PRs first.
+2. Pick an unclaimed `bug` from [open issues](https://github.com/ThraceShah/oh-my-orchestrator/issues). Check assignees, comments, and linked PRs first.
 3. Comment `I'd like to work on this` before starting.
 4. Open a PR with `Fixes #123` and describe how you checked the change.
 5. Address review feedback. Maintainers review and merge when the required checks pass.
@@ -42,11 +44,10 @@ Two onboarding notes matter on current `main`:
 
 ### Bugs and features
 
-Use the [GitHub issue forms](https://github.com/OrchestratorInc/agent-orchestrator/issues/new/choose) for bugs and feature requests.
+Use the [GitHub issue forms](https://github.com/ThraceShah/oh-my-orchestrator/issues/new/choose) for bugs and feature requests.
 
-Before working on a feature, comment `Can I work on this?` on its issue and
-wait for core-team approval there. Feature PRs wait for approval before review.
-A maintainer removes `needs-discussion` after approving the feature.
+Before working on a feature, open an issue here and discuss scope with this
+repository's maintainers. Feature PRs wait for that discussion before review.
 
 If an issue is misclassified, share its link on
 [Discord](https://discord.com/invite/UZv7JjxbwG).
