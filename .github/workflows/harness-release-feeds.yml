@@ -26,8 +26,10 @@ concurrency:
 
 jobs:
   live-feeds:
-    # Forks inherit the schedule but nobody watches their runs.
-    if: github.event_name != 'schedule' || !github.event.repository.fork
+    # Forks and independent copies inherit the daily schedule, but only the
+    # canonical repository publishes the desktop update advisory those feeds
+    # support. GitHub only marks repository.fork for Fork-button copies.
+    if: github.event_name != 'schedule' || github.repository == 'OrchestratorInc/agent-orchestrator'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
